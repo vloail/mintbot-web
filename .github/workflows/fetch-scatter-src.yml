@@ -1,0 +1,34 @@
+name: fetch-scatter-src
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/fetch-scatter-src.yml']
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch contract source
+        run: |
+          mkdir -p scatter_data
+          curl -sL --max-time 40 "https://robinhoodchain.blockscout.com/api?module=contract&action=getsourcecode&address=0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad" \
+            -H "User-Agent: Mozilla/5.0" -o scatter_data/cashnpc_source.json || true
+          wc -c scatter_data/cashnpc_source.json 2>/dev/null
+          python3 -c "
+import json
+d = json.load(open('scatter_data/cashnpc_source.json'))
+r = d['result'][0]
+print('ContractName:', r.get('ContractName'))
+print('Compiler:', r.get('CompilerVersion'))
+src = r.get('SourceCode','')
+print('SourceCode len:', len(src))
+open('scatter_data/cashnpc_source.sol','w').write(src)
+" 2>&1 | head -10
+      - name: Commit results
+        run: |
+          git config user.name "vloail"; git config user.email "vloail@users.noreply.github.com"
+          git add scatter_data/ || true
+          git commit -m "fetch: cash-npc contract source" || echo "no changes"
+          git push origin main || echo "push failed"
