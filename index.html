@@ -239,6 +239,40 @@
         <textarea id="keysList" placeholder="0xabc...&#10;0xdef...&#10;# 注释行"></textarea>
       </div>
 
+      <div class="sec-label">🛒 OpenSea SeaDrop 模式</div>
+      <div class="fld">
+        <label><input type="checkbox" id="osMode" style="width:auto;margin-right:6px;">启用 OpenSea SeaDrop mint（Robinhood Chain 预设 OUTLANDERS）</label>
+      </div>
+      <div id="osPanel" class="hidden">
+        <div class="row">
+          <div class="fld"><label>SeaDrop 合约</label><input type="text" id="osSeaDrop" value="0x00005EA00Ac477B1030cE78506496e8C2dE24bf5"></div>
+          <div class="fld"><label>NFT 合约</label><input type="text" id="osNft" value="0xc2e29ff7d4933d6ad609917236fd2a8278e87598"></div>
+        </div>
+        <div class="row">
+          <div class="fld"><label>feeRecipient（留空自动读）</label><input type="text" id="osFee" placeholder="0x6f8f...bbe9e0"></div>
+          <div class="fld"><label>mint 方式</label>
+            <select id="osMintMode">
+              <option value="auto">自动判断（有签名→签名阶段，否则→Public）</option>
+              <option value="public">仅 Public（mintPublic）</option>
+              <option value="signed">仅签名阶段（mintSigned）</option>
+            </select>
+          </div>
+        </div>
+        <div class="fld">
+          <label>签名 JSON（每钱包：stageIndex/mintPrice/startTime/endTime/maxTotalMintableByWallet/maxTokenSupplyForStage/feeBps/restrictFeeRecipients/salt/signature）</label>
+          <textarea id="osSigs" placeholder='{"0xwallet1":{"stageIndex":2,"mintPrice":"1500000000000000","startTime":1786820400,"endTime":1786824000,"maxTotalMintableByWallet":1,"maxTokenSupplyForStage":666,"feeBps":1000,"restrictFeeRecipients":true,"salt":"123","signature":"0x..."}}'></textarea>
+        </div>
+        <div class="row">
+          <div class="fld"><label>签名验证（EIP-712 recover，建议开）</label><select id="osVerify"><option value="1">开启</option><option value="0">关闭</option></select></div>
+          <div class="fld"><label>签名者白名单（自动读，可改）</label><input type="text" id="osSigner" value="0xfce4b31128100915f2980bbc3a08894ee5e8f8c3"></div>
+        </div>
+        <div class="actions" style="margin-top:6px;">
+          <button class="btn btn-ghost" id="osReadBtn" style="flex:1;">📡 读取链上 Drop 配置</button>
+        </div>
+        <div id="osInfo" class="hint"></div>
+        <div class="hint">签名获取：在 opensea.io 该集合页打开 DevTools → Network → 点 Mint → 找到 mintSigned 相关请求，把请求参数（mintParams/salt/signature）按上方 JSON 格式填。Public 阶段（17:00 UTC，北京时间 01:00）无需签名即可自动 mint。</div>
+      </div>
+
       <div class="actions">
         <button class="btn btn-primary" id="startBtn">▶ 开始批量 Mint</button>
         <button class="btn btn-danger hidden" id="stopBtn">■ 停止</button>
@@ -409,6 +443,9 @@ function saveCfg() {
     qty: $('qtyArg').value, calls: $('callsPerWallet').value, conc: $('concurrency').value,
     value: $('valueEth').value, gasMult: $('gasMult').value,
     customAbi: $('customAbi').value, customFn: $('customFn').value, customArgs: $('customArgs').value,
+    osMode: $('osMode').checked, osSeaDrop: $('osSeaDrop').value, osNft: $('osNft').value,
+    osFee: $('osFee').value, osMintMode: $('osMintMode').value, osSigs: $('osSigs').value,
+    osVerify: $('osVerify').value, osSigner: $('osSigner').value,
   };
   try { localStorage.setItem('mintbot_cfg', JSON.stringify(cfg)); } catch (e) {}
 }
@@ -431,6 +468,15 @@ function loadCfg() {
     $('customAbi').value = cfg.customAbi || '';
     $('customFn').value = cfg.customFn || '';
     $('customArgs').value = cfg.customArgs || '';
+    $('osMode').checked = !!cfg.osMode;
+    $('osSeaDrop').value = cfg.osSeaDrop || '0x00005EA00Ac477B1030cE78506496e8C2dE24bf5';
+    $('osNft').value = cfg.osNft || '0xc2e29ff7d4933d6ad609917236fd2a8278e87598';
+    $('osFee').value = cfg.osFee || '';
+    $('osMintMode').value = cfg.osMintMode || 'auto';
+    $('osSigs').value = cfg.osSigs || '';
+    $('osVerify').value = cfg.osVerify || '1';
+    $('osSigner').value = cfg.osSigner || '0xfce4b31128100915f2980bbc3a08894ee5e8f8c3';
+    $('osPanel').classList.toggle('hidden', !cfg.osMode);
     onFnChange();
   } catch (e) {}
 }
@@ -457,8 +503,17 @@ function initUI() {
   sel.dispatchEvent(new Event('change'));
   loadCfg();
 
-  ['rpcUrl','rpcChainId','explorer','symbol','contractAddr','qtyArg','callsPerWallet','concurrency','valueEth','gasMult','customAbi','customFn','customArgs','namesList','keysList']
+  ['rpcUrl','rpcChainId','explorer','symbol','contractAddr','qtyArg','callsPerWallet','concurrency','valueEth','gasMult','customAbi','customFn','customArgs','namesList','keysList','osSeaDrop','osNft','osFee','osMintMode','osSigs','osVerify','osSigner']
     .forEach(id => $(id).addEventListener('input', saveCfg));
+
+  $('osMode').addEventListener('change', () => {
+    $('osPanel').classList.toggle('hidden', !$('osMode').checked);
+    if ($('osMode').checked) log('🛒 OpenSea SeaDrop 模式开启。点「📡 读取链上 Drop 配置」拉取价格/时段。', 'info');
+    saveCfg();
+  });
+  $('osReadBtn').addEventListener('click', async () => {
+    try { await readOsDrop(); } catch (e) { log('❌ 读取失败：' + (e.message || e), 'err'); }
+  });
 
   $('contractPreset').addEventListener('change', applyContractPreset);
   $('fnSel').addEventListener('change', () => { onFnChange(); saveCfg(); });
@@ -548,8 +603,174 @@ function parseKeys(text) {
   return keys;
 }
 
+/* ============ OpenSea SeaDrop 支持 ============ */
+const OS_ABI = [
+  'function mintPublic(address nftContract, address feeRecipient, address minterIfNotPayer, uint256 quantity) payable',
+  'function mintSigned(address nftContract, address feeRecipient, address minterIfNotPayer, uint256 quantity, tuple(uint256 mintPrice, uint256 maxTotalMintableByWallet, uint256 startTime, uint256 endTime, uint256 dropStageIndex, uint256 maxTokenSupplyForStage, uint256 feeBps, bool restrictFeeRecipients) mintParams, uint256 salt, bytes signature) payable',
+  'function getPublicDrop(address nftContract) view returns (tuple(uint80 mintPrice, uint48 startTime, uint48 endTime, uint16 maxTotalMintableByWallet, uint16 feeBps, bool restrictFeeRecipients))',
+  'function getCreatorPayoutAddress(address nftContract) view returns (address)',
+  'function getSigners(address nftContract) view returns (address[])',
+  'function getSignedMintValidationParams(address nftContract, address signer) view returns (tuple(uint128 signedMintPrice, uint48 startTime, uint48 endTime, uint16 maxTotalMintableByWallet, uint16 maxTotalMintableByStage, bool signedMintPrice) )',
+];
+const OS_STAGE_NAMES = ['Public', 'TEAM', 'WL', 'COMMUNITY'];
+
+function osEnabled() { return $('osMode').checked; }
+function osChainId() { return currentChain().chainId; }
+
+function isAddrLoose(a) { return /^0x[a-fA-F0-9]{40}$/.test((a || '').trim()); }
+
+/* 读取链上 drop 配置 */
+async function readOsDrop() {
+  const seaDrop = $('osSeaDrop').value.trim().toLowerCase();
+  const nft = $('osNft').value.trim().toLowerCase();
+  if (!isAddrLoose(seaDrop) || !isAddrLoose(nft)) throw new Error('SeaDrop/NFT 合约地址格式不正确');
+  const p = makeProvider();
+  const c = new ethers.Contract(seaDrop, OS_ABI, p);
+  const [pd, payout, signers] = await Promise.all([
+    c.getPublicDrop(nft), c.getCreatorPayoutAddress(nft), c.getSigners(nft)
+  ]);
+  const fmt = (t) => new Date(t * 1000).toLocaleString('zh-CN', { hour12: false, timeZone: 'UTC' }) + ' UTC';
+  const info = $('osInfo');
+  info.innerHTML = `💰 价格 ${ethers.formatEther(pd.mintPrice)} ETH ｜ 每钱包上限 ${pd.maxTotalMintableByWallet} ｜ fee ${Number(pd.feeBps) / 100}%<br>` +
+    `🕐 ${fmt(Number(pd.startTime))} → ${fmt(Number(pd.endTime))}<br>` +
+    `🏦 feeRecipient <code>${payout}</code><br>✍️ signers <code>${signers.join(', ')}</code>`;
+  if (!$('osFee').value.trim()) $('osFee').value = payout;
+  if (signers.length && $('osSigner').value === '0xfce4b31128100915f2980bbc3a08894ee5e8f8c3') $('osSigner').value = signers[0];
+  log(`📡 OpenSea drop 配置已读取：${ethers.formatEther(pd.mintPrice)} ETH / 钱包上限 ${pd.maxTotalMintableByWallet} / fee ${Number(pd.feeBps) / 100}%`, 'ok');
+  return { pd, payout, signers };
+}
+
+/* 解析签名 JSON: {addr: {stageIndex, mintPrice, startTime, endTime, maxTotalMintableByWallet, maxTokenSupplyForStage, feeBps, restrictFeeRecipients, salt, signature}} */
+function parseOsSigs() {
+  const txt = $('osSigs').value.trim();
+  if (!txt) return {};
+  let d;
+  try { d = JSON.parse(txt); } catch (e) { throw new Error('签名 JSON 解析失败：' + e.message); }
+  const out = {};
+  for (const [addr, v] of Object.entries(d)) {
+    const a = addr.toLowerCase();
+    if (!/^0x[a-f0-9]{40}$/.test(a) || typeof v !== 'object') continue;
+    out[a] = {
+      stageIndex: v.stageIndex ?? 0,
+      mintPrice: v.mintPrice ? v.mintPrice.toString() : '0',
+      startTime: v.startTime ?? 0,
+      endTime: v.endTime ?? 0,
+      maxTotalMintableByWallet: v.maxTotalMintableByWallet ?? 1,
+      maxTokenSupplyForStage: v.maxTokenSupplyForStage ?? 0,
+      feeBps: v.feeBps ?? 0,
+      restrictFeeRecipients: !!v.restrictFeeRecipients,
+      salt: v.salt ?? '0',
+      signature: v.signature || '',
+    };
+  }
+  return out;
+}
+
+/* EIP-712 验证签名：返回 recovered 地址（或 throw） */
+function recoverOsSigner(wallet, sigEntry, seaDrop, nft, feeRecipient, chainId) {
+  const domain = { name: 'SeaDrop', version: '1.0', chainId, verifyingContract: seaDrop };
+  const types = {
+    SignedMint: [
+      { name: 'nftContract', type: 'address' }, { name: 'minter', type: 'address' },
+      { name: 'feeRecipient', type: 'address' }, { name: 'mintParams', type: 'MintParams' },
+      { name: 'salt', type: 'uint256' },
+    ],
+    MintParams: [
+      { name: 'mintPrice', type: 'uint256' }, { name: 'maxTotalMintableByWallet', type: 'uint256' },
+      { name: 'startTime', type: 'uint256' }, { name: 'endTime', type: 'uint256' },
+      { name: 'dropStageIndex', type: 'uint256' }, { name: 'maxTokenSupplyForStage', type: 'uint256' },
+      { name: 'feeBps', type: 'uint256' }, { name: 'restrictFeeRecipients', type: 'bool' },
+    ],
+  };
+  const value = {
+    nftContract: nft, minter: wallet, feeRecipient,
+    mintParams: {
+      mintPrice: sigEntry.mintPrice, maxTotalMintableByWallet: sigEntry.maxTotalMintableByWallet,
+      startTime: sigEntry.startTime, endTime: sigEntry.endTime, dropStageIndex: sigEntry.stageIndex,
+      maxTokenSupplyForStage: sigEntry.maxTokenSupplyForStage, feeBps: sigEntry.feeBps,
+      restrictFeeRecipients: sigEntry.restrictFeeRecipients,
+    },
+    salt: sigEntry.salt,
+  };
+  return ethers.verifyTypedData(domain, types, value, sigEntry.signature);
+}
+
+/* 构造 OpenSea 任务（按钱包判断阶段） */
+function osBuildJobs(wallets) {
+  const seaDrop = $('osSeaDrop').value.trim().toLowerCase();
+  const nft = $('osNft').value.trim().toLowerCase();
+  if (!isAddrLoose(seaDrop) || !isAddrLoose(nft)) throw new Error('SeaDrop/NFT 合约地址格式不正确');
+  const mode = $('osMintMode').value;
+  const sigs = parseOsSigs();
+  const verify = $('osVerify').value === '1';
+  const signerWhite = $('osSigner').value.trim().toLowerCase();
+  const feeRecipient = ($('osFee').value.trim() || '0x6f8fe8d6df843a0def9ef54972022843e1bbe9e0').toLowerCase();
+  const qty = qtyArg();
+
+  const jobs = [];
+  wallets.forEach((w) => {
+    const wa = w.addr.toLowerCase();
+    const sigEntry = sigs[wa];
+    const useSigned = mode !== 'public' && sigEntry && sigEntry.signature;
+    if (mode === 'signed' && !useSigned) {
+      jobs.push({ signer: w.signer, addr: w.addr, label: `⛔ ${w.addr.slice(0,6)}…${w.addr.slice(-4)}`, tasks: [], skipReason: '无签名数据' });
+      return;
+    }
+    let stageName, args, valueWei;
+    if (useSigned) {
+      if (verify && signerWhite) {
+        let rec = null;
+        try { rec = recoverOsSigner(wa, sigEntry, seaDrop, nft, feeRecipient, osChainId()).toLowerCase(); }
+        catch (e) { /* 非法签名格式 → 验证失败 */ }
+        if (!rec || rec !== signerWhite) {
+          jobs.push({ signer: w.signer, addr: w.addr, label: `⛔ ${w.addr.slice(0,6)}…${w.addr.slice(-4)}`, tasks: [], skipReason: `签名无效 (recover=${rec ? rec.slice(0,8) + '…' : '格式非法'})` });
+          return;
+        }
+      }
+      stageName = OS_STAGE_NAMES[sigEntry.stageIndex] || ('阶段' + sigEntry.stageIndex);
+      const mp = {
+        mintPrice: sigEntry.mintPrice, maxTotalMintableByWallet: sigEntry.maxTotalMintableByWallet,
+        startTime: sigEntry.startTime, endTime: sigEntry.endTime, dropStageIndex: sigEntry.stageIndex,
+        maxTokenSupplyForStage: sigEntry.maxTokenSupplyForStage, feeBps: sigEntry.feeBps,
+        restrictFeeRecipients: sigEntry.restrictFeeRecipients,
+      };
+      args = [nft, feeRecipient, '0x0000000000000000000000000000000000000000', qty, mp, sigEntry.salt, sigEntry.signature];
+      valueWei = BigInt(sigEntry.mintPrice) * BigInt(qty);
+      jobs.push({ signer: w.signer, addr: w.addr, label: `${w.addr.slice(0,6)}…${w.addr.slice(-4)}`, stage: stageName, fnName: 'mintSigned', abiArr: OS_ABI, contractAddr: seaDrop, tasks: [{ args, valueWei }] });
+    } else {
+      stageName = 'Public';
+      args = [nft, feeRecipient, '0x0000000000000000000000000000000000000000', qty];
+      valueWei = ethers.parseEther('0.0015') * BigInt(qty); // 默认价格，readOsDrop 后可改
+      jobs.push({ signer: w.signer, addr: w.addr, label: `${w.addr.slice(0,6)}…${w.addr.slice(-4)}`, stage: stageName, fnName: 'mintPublic', abiArr: OS_ABI, contractAddr: seaDrop, tasks: [{ args, valueWei }] });
+    }
+  });
+  return jobs;
+}
+
+/* 构建钱包列表（模式 A 连接钱包 / 模式 B 批量私钥） */
+function buildWallets() {
+  let wallets;
+  if (mode === 'A') {
+    if (!signer) throw new Error('请先连接钱包（或切换到批量私钥模式）');
+    wallets = [{ signer, addr: connAddr }];
+  } else {
+    const keys = parseKeys($('keysList').value);
+    if (!keys.length) throw new Error('未解析到有效私钥（每行一个 0x64 位）');
+    const p = makeProvider();
+    wallets = keys.map(k => {
+      const w = new ethers.Wallet(k, p);
+      return { signer: w, addr: w.address.toLowerCase() };
+    });
+  }
+  return wallets;
+}
+
 /* ---------- 构建任务（按钱包分组：钱包内顺序，钱包间并行） ---------- */
 function buildJobs() {
+  if (osEnabled()) {
+    // OpenSea SeaDrop 模式：按钱包判断阶段构造任务
+    return osBuildJobs(buildWallets());
+  }
   const fnKey = $('fnSel').value;
   const addr = $('contractAddr').value.trim();
   if (!ethers.isAddress(addr)) throw new Error('合约地址格式不正确');
@@ -575,20 +796,7 @@ function buildJobs() {
   const mult = parseFloat($('gasMult').value || '1.2');
   const n = callsPerWallet();
 
-  let wallets;
-  if (mode === 'A') {
-    if (!signer) throw new Error('请先连接钱包（或切换到批量私钥模式）');
-    wallets = [{ signer, addr: connAddr }];
-  } else {
-    const keys = parseKeys($('keysList').value);
-    if (!keys.length) throw new Error('未解析到有效私钥（每行一个 0x64 位）');
-    const p = makeProvider();
-    wallets = keys.map(k => {
-      const w = new ethers.Wallet(k, p);
-      return { signer: w, addr: w.address.toLowerCase() };
-    });
-  }
-
+  const wallets = buildWallets();
   const jobs = [];
   nameIdx = 0; // 名字列表在整个任务队列中顺序消费
   wallets.forEach((w) => {
@@ -619,12 +827,12 @@ async function sendOne(signer, t) {
     overrides.gasPrice = (fd.gasPrice * BigInt(Math.round(t.mult * 100))) / 100n;
   }
 
-  // gasLimit：先估算，失败则回退 300k
+  // gasLimit：先估算，失败则回退（SeaDrop 模式给 500k，其他 300k）
   try {
     const est = await contract.getFunction(t.fnName).estimateGas(...t.args, overrides);
     overrides.gasLimit = est + 20000n;
   } catch (e) {
-    overrides.gasLimit = 300000n;
+    overrides.gasLimit = osEnabled() ? 500000n : 300000n;
   }
 
   const tx = await contract.getFunction(t.fnName)(...t.args, overrides);
@@ -663,10 +871,23 @@ async function startRun() {
         while (queue.length && !stopFlag) {
           const job = queue.shift();
           if (!job) break;
+          if (job.skipReason) {
+            setStat('fail', stats.fail + 1);
+            failList.push(`${job.label}\t-\t${job.skipReason}`);
+            log(`❌ [${job.label}] 跳过：${job.skipReason}`, 'err');
+            setProg(stats.ok + stats.fail, total);
+            continue;
+          }
           for (const t of job.tasks) {
             if (stopFlag) break;
             setStat('run', stats.run + 1);
-            log(`⏳ [${job.label}] 发送 ${t.fnName}(${t.args.map(a => typeof a === 'string' && a.length > 12 ? a.slice(0, 6) + '…' + a.slice(-4) : a).join(', ')}) …`, '');
+            const fmtArg = (a) => {
+              if (typeof a === 'string') return a.length > 12 ? a.slice(0, 6) + '…' + a.slice(-4) : a;
+              if (a && typeof a === 'object') return '{' + Object.keys(a).join(',') + '}';
+              return String(a);
+            };
+            const stageTag = job.stage ? ` [${job.stage}]` : '';
+            log(`⏳ [${job.label}] 发送 ${t.fnName}${stageTag}(${t.args.map(fmtArg).join(', ')}) …`, '');
             try {
               const receipt = await sendOne(job.signer, t);
               setStat('ok', stats.ok + 1);
