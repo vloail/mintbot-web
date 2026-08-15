@@ -211,6 +211,11 @@
         <input type="text" id="newWalletName" placeholder="名称（可选）" style="width:110px;">
         <button class="btn btn-ghost" style="flex:0 0 auto;padding:7px 12px;" id="createWalletBtn">创建</button>
       </div>
+      <div class="wallet-item" style="border-color:rgba(167,139,250,0.4);">
+        <span style="flex:1;">⚡ 批量创建（无📄助记词，导出私钥 CSV）</span>
+        <input type="number" id="batchCount" value="10" min="1" max="500" style="width:64px;">
+        <button class="btn btn-ghost" style="flex:0 0 auto;padding:7px 12px;" id="batchCreateBtn">创建</button>
+      </div>
       <div class="fld">
         <label>导入钱包（私钥 或 12/24 个助记词）</label>
         <div style="display:flex;gap:8px;">
@@ -220,6 +225,19 @@
       </div>
       <div id="walletSelBox"></div>
       <div class="hint">在左侧批量 mint 面板的「钱包来源」选「👤 账号钱包」后，勾选要使用的钱包即可批量 mint。</div>
+    </div>
+  </div>
+
+  <!-- 批量创建结果弹窗 -->
+  <div class="overlay hidden" id="batchOverlay">
+    <div class="modal">
+      <h3>⚡ 批量创建完成（<span id="batchTotal">0</span> 个）<button class="close" onclick="hideModal('batchOverlay')">✕</button></h3>
+      <div id="batchList" style="max-height:260px;overflow-y:auto;font-size:11px;margin-bottom:10px;"></div>
+      <div class="actions" style="margin-top:6px;">
+        <button class="btn btn-ghost" id="batchCopyBtn">📋 复制全部私钥</button>
+        <button class="btn btn-ghost" id="batchCsvBtn">💾 下载私钥 CSV</button>
+      </div>
+      <div class="hint" style="color:var(--warn);margin-top:10px;">⚠️ 批量钱包不带助记词，私钥务必导出保存！关窗后仍可在「👛 我的钱包」里点 🔑 单个导出。</div>
     </div>
   </div>
 
@@ -247,6 +265,12 @@
     <div class="card">
       <h2><span class="bar"></span>① 任务配置</h2>
 
+      <div class="mode-switch" style="margin-bottom:16px;">
+        <button id="tabNormal" class="active">🧪 普通合约 Mint</button>
+        <button id="tabOs">🛒 OpenSea Mint</button>
+      </div>
+
+      <div id="normalCfg">
       <div class="fld">
         <label>网络（Chain）</label>
         <select id="chainSel"></select>
@@ -295,6 +319,7 @@
           <div class="fld"><label>参数 JSON（数组）</label><input type="text" id="customArgs" placeholder='["0x...", 5]'></div>
         </div>
       </div>
+      </div><!-- /normalCfg -->
 
       <div class="sec-label">批量参数</div>
       <div class="row3">
@@ -326,10 +351,6 @@
         <textarea id="keysList" placeholder="0xabc...&#10;0xdef...&#10;# 注释行"></textarea>
       </div>
 
-      <div class="sec-label">🛒 OpenSea SeaDrop 模式</div>
-      <div class="fld">
-        <label><input type="checkbox" id="osMode" style="width:auto;margin-right:6px;">启用 OpenSea SeaDrop mint（Robinhood Chain 预设 OUTLANDERS）</label>
-      </div>
       <div id="osPanel" class="hidden">
         <div class="fld">
           <label>OpenSea 集合链接 / slug（一键自动配置）</label>
@@ -459,6 +480,7 @@ const FN_ARGS = {
 /* ---------- 状态 ---------- */
 let provider = null, signer = null, connAddr = null;
 let mode = 'A';
+let osTab = 'normal';          // 'normal' | 'os'
 let running = false, stopFlag = false;
 let stats = { total: 0, ok: 0, fail: 0, run: 0 };
 let failList = [];
@@ -590,6 +612,50 @@ async function deleteWallet(id) {
   log(`🗑️ 已删除钱包 ${walletShort(w.address)}`, 'warn');
 }
 
+let lastBatch = []; // 最近一次批量创建的结果（供复制/导出）
+
+async function batchCreateWallets(n) {
+  if (!isLoggedIn()) throw new Error('请先登录账号');
+  n = Math.min(Math.max(parseInt(n, 10) || 10, 1), 500);
+  const start = account.wallets.length;
+  lastBatch = [];
+  for (let i = 0; i < n; i++) {
+    const w = ethers.Wallet.createRandom();
+    account.wallets.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: `批量${start + i + 1}`, address: w.address, mnemonic: '', privateKey: w.privateKey });
+    lastBatch.push({ name: `批量${start + i + 1}`, address: w.address, privateKey: w.privateKey });
+  }
+  await saveVault();
+  renderWalletList();
+  $('batchTotal').textContent = n;
+  $('batchList').innerHTML = lastBatch.map(w => `
+    <div class="wallet-item" style="margin-bottom:4px;">
+      <span class="w-name">${w.name}</span>
+      <span class="addr">${w.address}</span>
+    </div>`).join('');
+  showModal('batchOverlay');
+  log(`⚡ 已批量创建 ${n} 个钱包（无助记词，请导出私钥保存）`, 'ok');
+}
+
+function batchCopyKeys() {
+  if (!lastBatch.length) return;
+  navigator.clipboard.writeText(lastBatch.map(w => w.privateKey).join('\n'))
+    .then(() => log(`📋 已复制 ${lastBatch.length} 条私钥`, 'ok'))
+    .catch(() => log('❌ 复制失败（浏览器权限）', 'err'));
+}
+
+function batchDownloadCsv() {
+  if (!lastBatch.length) return;
+  const csv = '\uFEFFname,address,privateKey\n' + lastBatch.map(w => `${w.name},${w.address},${w.privateKey}`).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mintbot_wallets.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  log('💾 已下载私钥 CSV，请妥善保管', 'ok');
+}
+
 function exportWallet(id) {
   if (!isLoggedIn()) return;
   const w = account.wallets.find(x => x.id === id);
@@ -712,7 +778,7 @@ function saveCfg() {
     qty: $('qtyArg').value, calls: $('callsPerWallet').value, conc: $('concurrency').value,
     value: $('valueEth').value, gasMult: $('gasMult').value,
     customAbi: $('customAbi').value, customFn: $('customFn').value, customArgs: $('customArgs').value,
-    osMode: $('osMode').checked, osSeaDrop: $('osSeaDrop').value, osNft: $('osNft').value,
+    osTab: osTab, osSeaDrop: $('osSeaDrop').value, osNft: $('osNft').value,
     osFee: $('osFee').value, osMintMode: $('osMintMode').value, osSigs: $('osSigs').value,
     osVerify: $('osVerify').value, osSigner: $('osSigner').value, osSlug: $('osSlug').value,
   };
@@ -737,7 +803,6 @@ function loadCfg() {
     $('customAbi').value = cfg.customAbi || '';
     $('customFn').value = cfg.customFn || '';
     $('customArgs').value = cfg.customArgs || '';
-    $('osMode').checked = !!cfg.osMode;
     $('osSeaDrop').value = cfg.osSeaDrop || '0x00005EA00Ac477B1030cE78506496e8C2dE24bf5';
     $('osNft').value = cfg.osNft || '0xc2e29ff7d4933d6ad609917236fd2a8278e87598';
     $('osFee').value = cfg.osFee || '';
@@ -746,7 +811,8 @@ function loadCfg() {
     $('osVerify').value = cfg.osVerify || '1';
     $('osSigner').value = cfg.osSigner || '0xfce4b31128100915f2980bbc3a08894ee5e8f8c3';
     $('osSlug').value = cfg.osSlug || '';
-    $('osPanel').classList.toggle('hidden', !cfg.osMode);
+    if (cfg.osTab === 'os' || cfg.osMode === true) setTab('os');
+    else setTab('normal');
     onFnChange();
   } catch (e) {}
 }
@@ -776,11 +842,8 @@ function initUI() {
   ['rpcUrl','rpcChainId','explorer','symbol','contractAddr','qtyArg','callsPerWallet','concurrency','valueEth','gasMult','customAbi','customFn','customArgs','namesList','keysList','osSeaDrop','osNft','osFee','osMintMode','osSigs','osVerify','osSigner','osSlug']
     .forEach(id => $(id).addEventListener('input', saveCfg));
 
-  $('osMode').addEventListener('change', () => {
-    $('osPanel').classList.toggle('hidden', !$('osMode').checked);
-    if ($('osMode').checked) log('🛒 OpenSea SeaDrop 模式开启。点「📡 读取链上 Drop 配置」拉取价格/时段。', 'info');
-    saveCfg();
-  });
+  $('tabNormal').addEventListener('click', () => setTab('normal'));
+  $('tabOs').addEventListener('click', () => setTab('os'));
   $('osReadBtn').addEventListener('click', async () => {
     try { await readOsDrop(); } catch (e) { log('❌ 读取失败：' + (e.message || e), 'err'); }
   });
@@ -852,6 +915,12 @@ function initUI() {
   });
   $('importInput').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('importWalletBtn').click(); });
   $('accPass').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('accSubmitBtn').click(); });
+  $('batchCreateBtn').addEventListener('click', async () => {
+    try { await batchCreateWallets($('batchCount').value); }
+    catch (e) { log('❌ ' + (e.message || e), 'err'); }
+  });
+  $('batchCopyBtn').addEventListener('click', batchCopyKeys);
+  $('batchCsvBtn').addEventListener('click', batchDownloadCsv);
 }
 
 function setMode(m) {
@@ -906,7 +975,16 @@ const OS_ABI = [
 ];
 const OS_STAGE_NAMES = ['Public', 'TEAM', 'WL', 'COMMUNITY'];
 
-function osEnabled() { return $('osMode').checked; }
+function osEnabled() { return osTab === 'os'; }
+function setTab(t) {
+  osTab = t;
+  $('tabNormal').classList.toggle('active', t === 'normal');
+  $('tabOs').classList.toggle('active', t === 'os');
+  $('normalCfg').classList.toggle('hidden', t !== 'normal');
+  $('osPanel').classList.toggle('hidden', t !== 'os');
+  if (t === 'os') log('🛒 OpenSea Mint 模式。填集合链接点「⚡ 自动配置」，或点「📡 读取链上 Drop 配置」。', 'info');
+  saveCfg();
+}
 function osChainId() { return currentChain().chainId; }
 
 function isAddrLoose(a) { return /^0x[a-fA-F0-9]{40}$/.test((a || '').trim()); }
