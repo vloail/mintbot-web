@@ -283,6 +283,7 @@
       <div class="mode-switch" style="margin-bottom:16px;">
         <button id="tabNormal" class="active">🧪 普通合约 Mint</button>
         <button id="tabOs">🛒 OpenSea Mint</button>
+        <button id="tabScatter">🛰️ Scatter 发射台</button>
       </div>
 
       <div id="normalCfg">
@@ -409,6 +410,24 @@
         </div>
         <div id="osInfo" class="hint"></div>
         <div class="hint">签名获取：在 opensea.io 该集合页打开 DevTools → Network → 点 Mint → 找到 mintSigned 相关请求，把请求参数（mintParams/salt/signature）按上方 JSON 格式填。Public 阶段（17:00 UTC，北京时间 01:00）无需签名即可自动 mint。</div>
+      </div>
+
+      <div id="scatterPanel" class="hidden">
+        <div class="fld">
+          <label>Scatter 集合合约地址（预设 Cash NPC）</label>
+          <input type="text" id="scAddr" value="0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad">
+        </div>
+        <div class="actions" style="margin-top:6px;">
+          <button class="btn btn-ghost" id="scReadBtn" style="flex:1;">📡 读取列表（invites）</button>
+        </div>
+        <div id="scInfo" class="hint"></div>
+        <div class="row">
+          <div class="fld"><label>列表 key（下拉或手填，自动配置后选中）</label>
+            <select id="scKey"><option value="1">1 — NPC PUBLIC (0.000043 ETH)</option><option value="0">0 — FREE MINT (已售罄)</option></select>
+          </div>
+          <div class="fld"><label>每笔数量（≤100）</label><input type="number" id="scQty" value="1" min="1" max="100"></div>
+        </div>
+        <div class="hint">🛰️ Scatter/Archetype mint：无需签名、无需 proof（key ≤ 0xff 公开列表）。affiliate 填 0。价格自动按列表 price 计算（可改「每笔 ETH 价值」覆盖）。</div>
       </div>
 
       <div class="actions">
@@ -818,6 +837,7 @@ function saveCfg() {
     osTab: osTab, osSeaDrop: $('osSeaDrop').value, osNft: $('osNft').value,
     osFee: $('osFee').value, osMintMode: $('osMintMode').value, osSigs: $('osSigs').value,
     osVerify: $('osVerify').value, osSigner: $('osSigner').value, osSlug: $('osSlug').value,
+    scAddr: $('scAddr').value, scKey: $('scKey').value, scQty: $('scQty').value,
   };
   try { localStorage.setItem('mintbot_cfg', JSON.stringify(cfg)); } catch (e) {}
 }
@@ -848,7 +868,11 @@ function loadCfg() {
     $('osVerify').value = cfg.osVerify || '1';
     $('osSigner').value = cfg.osSigner || '0xfce4b31128100915f2980bbc3a08894ee5e8f8c3';
     $('osSlug').value = cfg.osSlug || '';
+    $('scAddr').value = cfg.scAddr || '0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad';
+    $('scKey').value = cfg.scKey || '1';
+    $('scQty').value = cfg.scQty || '1';
     if (cfg.osTab === 'os' || cfg.osMode === true) setTab('os');
+    else if (cfg.osTab === 'scatter') setTab('scatter');
     else setTab('normal');
     onFnChange();
   } catch (e) {}
@@ -876,11 +900,15 @@ function initUI() {
   sel.dispatchEvent(new Event('change'));
   loadCfg();
 
-  ['rpcUrl','rpcChainId','explorer','symbol','contractAddr','qtyArg','callsPerWallet','concurrency','valueEth','gasMult','customAbi','customFn','customArgs','namesList','keysList','osSeaDrop','osNft','osFee','osMintMode','osSigs','osVerify','osSigner','osSlug']
+  ['rpcUrl','rpcChainId','explorer','symbol','contractAddr','qtyArg','callsPerWallet','concurrency','valueEth','gasMult','customAbi','customFn','customArgs','namesList','keysList','osSeaDrop','osNft','osFee','osMintMode','osSigs','osVerify','osSigner','osSlug','scAddr','scKey','scQty']
     .forEach(id => $(id).addEventListener('input', saveCfg));
 
   $('tabNormal').addEventListener('click', () => setTab('normal'));
   $('tabOs').addEventListener('click', () => setTab('os'));
+  $('tabScatter').addEventListener('click', () => setTab('scatter'));
+  $('scReadBtn').addEventListener('click', async () => {
+    try { await scatterRead(); } catch (e) { log('❌ 读取失败：' + (e.message || e), 'err'); }
+  });
   $('osReadBtn').addEventListener('click', async () => {
     try { await readOsDrop(); } catch (e) { log('❌ 读取失败：' + (e.message || e), 'err'); }
   });
@@ -1017,13 +1045,17 @@ const OS_ABI = [
 const OS_STAGE_NAMES = ['Public', 'TEAM', 'WL', 'COMMUNITY'];
 
 function osEnabled() { return osTab === 'os'; }
+function scatterEnabled() { return osTab === 'scatter'; }
 function setTab(t) {
   osTab = t;
   $('tabNormal').classList.toggle('active', t === 'normal');
   $('tabOs').classList.toggle('active', t === 'os');
+  $('tabScatter').classList.toggle('active', t === 'scatter');
   $('normalCfg').classList.toggle('hidden', t !== 'normal');
   $('osPanel').classList.toggle('hidden', t !== 'os');
+  $('scatterPanel').classList.toggle('hidden', t !== 'scatter');
   if (t === 'os') log('🛒 OpenSea Mint 模式。填集合链接点「⚡ 自动配置」，或点「📡 读取链上 Drop 配置」。', 'info');
+  if (t === 'scatter') log('🛰️ Scatter 发射台模式。点「📡 读取列表」查看各 key 价格/供应。', 'info');
   saveCfg();
 }
 function osChainId() { return currentChain().chainId; }
@@ -1252,11 +1284,79 @@ function buildWallets() {
   return wallets;
 }
 
+/* ============ Scatter / Archetype 发射台支持 ============ */
+const SCATTER_ABI = [
+  'function mint((bytes32 key, bytes32[] proof), uint256 quantity, address affiliate, bytes signature) payable',
+  'function invites(bytes32 key) view returns (uint128 price, uint128 reservePrice, uint128 delta, uint32 start, uint32 end, uint32 limit, uint32 maxSupply, uint32 interval, uint32 unitSize, address tokenAddress, bool isBlacklist)',
+  'function listSupply(bytes32 key) view returns (uint256)',
+  'function config() view returns (string baseUri, address affiliateSigner, uint32 maxSupply, uint32 maxBatchSize, uint16 affiliateFee, uint16 affiliateDiscount, uint16 defaultRoyalty)',
+];
+let scLists = []; // 读取到的列表缓存
+
+async function scatterRead() {
+  const addr = $('scAddr').value.trim().toLowerCase();
+  if (!isAddrLoose(addr)) throw new Error('合约地址格式不正确');
+  const p = makeProvider();
+  const c = new ethers.Contract(addr, SCATTER_ABI, p);
+  let cfg = null;
+  try { cfg = await c.config(); } catch (e) {}
+  scLists = [];
+  const options = [];
+  for (let key = 0; key < 16; key++) {
+    try {
+      const keyBytes = ethers.zeroPadValue(ethers.toBeHex(key), 32);
+      const inv = await c.invites(keyBytes);
+      if (Number(inv.limit) === 0 && Number(inv.maxSupply) === 0 && inv.price === 0n) continue;
+      const supply = Number(await c.listSupply(keyBytes));
+      scLists.push({ key, price: inv.price, limit: Number(inv.limit), maxSupply: Number(inv.maxSupply), supply, start: Number(inv.start), end: Number(inv.end) });
+    } catch (e) { /* 无此 key */ }
+  }
+  if (!scLists.length) throw new Error('未找到有效列表（invites 全空）');
+  const now = Date.now() / 1000;
+  const fmt = (t) => new Date(t * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+  const rows = scLists.map(l => {
+    const status = now < l.start ? '⏳ 未开始' : l.supply >= l.maxSupply ? '✅ 售罄' : '🟢 进行中';
+    const price = l.price > 0n ? ethers.formatEther(l.price) + ' ETH' : '免费';
+    return `<tr><td>${l.key}</td><td>${price}</td><td>${l.limit === 4294967295 ? '∞' : l.limit}</td><td>${l.supply}/${l.maxSupply}</td><td>${fmt(l.start)}</td><td>${status}</td></tr>`;
+  }).join('');
+  $('scInfo').innerHTML = (cfg ? `⛓️ maxSupply ${cfg.maxSupply} ｜ 每笔上限 ${cfg.maxBatchSize} ｜ signer <code>${cfg.affiliateSigner}</code><br>` : '') +
+    `<table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:6px;">
+    <tr style="color:var(--dim)"><th align="left">key</th><th align="left">价格</th><th align="left">钱包上限</th><th align="left">供应</th><th align="left">开始</th><th align="left">状态</th></tr>${rows}</table>`;
+  // 更新下拉
+  const sel = $('scKey');
+  const cur = sel.value;
+  sel.innerHTML = scLists.map(l => `<option value="${l.key}">${l.key} — ${l.price > 0n ? ethers.formatEther(l.price) + ' ETH' : 'FREE'} (${l.supply}/${l.maxSupply})</option>`).join('');
+  if (scLists.some(l => String(l.key) === cur)) sel.value = cur;
+  log(`📡 Scatter 列表读取完成：${scLists.length} 个 key`, 'ok');
+}
+
+function scatterBuildJobs(wallets) {
+  const addr = $('scAddr').value.trim().toLowerCase();
+  if (!isAddrLoose(addr)) throw new Error('合约地址格式不正确');
+  const keyVal = BigInt($('scKey').value || '1');
+  const qty = Math.min(Math.max(parseInt($('scQty').value, 10) || 1, 1), 100);
+  const keyHex = ethers.zeroPadValue(ethers.toBeHex(keyVal), 32);
+  const list = scLists.find(l => l.key === Number(keyVal));
+  const price = list ? list.price : ethers.parseEther(($('valueEth').value || '0.000043'));
+  const valueWei = price * BigInt(qty);
+  const args = [{ key: keyHex, proof: [] }, qty, '0x0000000000000000000000000000000000000000', '0x'];
+  const stageName = 'Scatter key=' + keyVal + (list && list.price > 0n ? ' @' + ethers.formatEther(list.price) + ' ETH' : ' @FREE');
+  return wallets.map(w => ({
+    signer: w.signer, addr: w.addr, label: `${w.addr.slice(0, 6)}…${w.addr.slice(-4)}`,
+    stage: stageName, fnName: 'mint', abiArr: SCATTER_ABI, contractAddr: addr,
+    tasks: [{ args, valueWei }]
+  }));
+}
+
 /* ---------- 构建任务（按钱包分组：钱包内顺序，钱包间并行） ---------- */
 function buildJobs() {
   if (osEnabled()) {
     // OpenSea SeaDrop 模式：按钱包判断阶段构造任务
     return osBuildJobs(buildWallets());
+  }
+  if (scatterEnabled()) {
+    // Scatter/Archetype 发射台
+    return scatterBuildJobs(buildWallets());
   }
   const fnKey = $('fnSel').value;
   const addr = $('contractAddr').value.trim();
@@ -1319,7 +1419,7 @@ async function sendOne(signer, t) {
     const est = await contract.getFunction(t.fnName).estimateGas(...t.args, overrides);
     overrides.gasLimit = est + 20000n;
   } catch (e) {
-    overrides.gasLimit = osEnabled() ? 500000n : 300000n;
+    overrides.gasLimit = (osEnabled() || scatterEnabled()) ? 500000n : 300000n;
   }
 
   const tx = await contract.getFunction(t.fnName)(...t.args, overrides);
