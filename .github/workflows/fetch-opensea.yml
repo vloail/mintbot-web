@@ -1,0 +1,30 @@
+name: fetch-opensea
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/fetch-opensea.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch OpenSea collection data (Robinhood chain)
+        run: |
+          mkdir -p opensea_data
+          curl -sL --max-time 30 "https://api.opensea.io/api/v2/chain/robinhood/collections/outlandersonrh" \
+            -H "accept: application/json" -o opensea_data/collection.json
+          curl -sL --max-time 30 "https://api.opensea.io/api/v2/chain/robinhood/collections/outlandersonrh/nfts?limit=3" \
+            -H "accept: application/json" -o opensea_data/nfts.json
+          echo "=== collection.json ==="; head -c 3000 opensea_data/collection.json
+          echo; echo "=== nfts.json ==="; head -c 1500 opensea_data/nfts.json
+      - name: Commit results
+        run: |
+          git config user.name "vloail"
+          git config user.email "vloail@users.noreply.github.com"
+          git add opensea_data/ || true
+          git commit -m "fetch: opensea outlandersonrh data" || echo "no changes to commit"
+          git push origin main || echo "push failed"
