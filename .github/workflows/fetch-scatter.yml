@@ -1,6 +1,11 @@
 name: fetch-scatter
 on:
   workflow_dispatch:
+    inputs:
+      slug:
+        description: 'Scatter collection slug (e.g. cash-npc)'
+        required: false
+        default: 'cash-npc'
   push:
     paths: ['.github/workflows/fetch-scatter.yml']
 
@@ -10,22 +15,49 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    env:
+      SLUG: ${{ inputs.slug || 'cash-npc' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch blockscout contract data (Cash NPC)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright + chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i playwright-core >/dev/null 2>&1
+          npx playwright-core install chromium --with-deps >/dev/null 2>&1 || true
+      - name: Fetch Scatter collection page (headless)
         run: |
           mkdir -p scatter_data
-          curl -sL --max-time 30 "https://robinhoodchain.blockscout.com/api?module=contract&action=getabi&address=0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad" \
-            -H "User-Agent: Mozilla/5.0" -o scatter_data/cashnpc_abi.json || true
-          curl -sL --max-time 30 "https://robinhoodchain.blockscout.com/api/v2/smart-contracts/0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad" \
-            -H "User-Agent: Mozilla/5.0" -o scatter_data/cashnpc_contract.json || true
-          echo "=== sizes ==="; wc -c scatter_data/* 2>/dev/null
-          echo "=== abi head ==="; head -c 600 scatter_data/cashnpc_abi.json 2>/dev/null
-          echo; echo "=== contract head ==="; head -c 400 scatter_data/cashnpc_contract.json 2>/dev/null
+          node -e "
+          const { chromium } = require('playwright-core');
+          (async () => {
+            const browser = await chromium.launch();
+            const ctx = await browser.newContext({
+              userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+            });
+            const page = await ctx.newPage();
+            try {
+              await page.goto('https://www.scatter.art/c/' + process.env.SLUG, { waitUntil: 'domcontentloaded', timeout: 60000 });
+              await page.waitForTimeout(8000);
+            } catch (e) { console.log('goto err:', e.message); }
+            const html = await page.content();
+            const m = html.match(/0x[a-fA-F0-9]{40}/g);
+            const addrs = [...new Set(m || [])];
+            const links = await page.$$eval('a[href*="blockscout"]', as => as.map(a => a.href)).catch(() => []);
+            console.log('ADDRS:', addrs.join(','));
+            console.log('LINKS:', links.join('|'));
+            require('fs').writeFileSync('scatter_data/' + process.env.SLUG + '.json',
+              JSON.stringify({ slug: process.env.SLUG, fetchedAt: new Date().toISOString(), addrs, links }, null, 1));
+            await browser.close();
+          })();
+          "
+          echo "---"; wc -c scatter_data/${SLUG}.json 2>/dev/null
       - name: Commit results
         run: |
           git config user.name "vloail"
           git config user.email "vloail@users.noreply.github.com"
           git add scatter_data/ || true
-          git commit -m "fetch: scatter cash-npc contract data" || echo "no changes to commit"
+          git commit -m "fetch: scatter ${SLUG}" || echo "no changes to commit"
           git push origin main || echo "push failed"
