@@ -1,0 +1,31 @@
+name: fetch-scatter
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/fetch-scatter.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch blockscout contract data (Cash NPC)
+        run: |
+          mkdir -p scatter_data
+          curl -sL --max-time 30 "https://robinhoodchain.blockscout.com/api?module=contract&action=getabi&address=0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad" \
+            -H "User-Agent: Mozilla/5.0" -o scatter_data/cashnpc_abi.json || true
+          curl -sL --max-time 30 "https://robinhoodchain.blockscout.com/api/v2/smart-contracts/0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad" \
+            -H "User-Agent: Mozilla/5.0" -o scatter_data/cashnpc_contract.json || true
+          echo "=== sizes ==="; wc -c scatter_data/* 2>/dev/null
+          echo "=== abi head ==="; head -c 600 scatter_data/cashnpc_abi.json 2>/dev/null
+          echo; echo "=== contract head ==="; head -c 400 scatter_data/cashnpc_contract.json 2>/dev/null
+      - name: Commit results
+        run: |
+          git config user.name "vloail"
+          git config user.email "vloail@users.noreply.github.com"
+          git add scatter_data/ || true
+          git commit -m "fetch: scatter cash-npc contract data" || echo "no changes to commit"
+          git push origin main || echo "push failed"
