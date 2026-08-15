@@ -414,6 +414,14 @@
 
       <div id="scatterPanel" class="hidden">
         <div class="fld">
+          <label>Scatter 集合链接 / slug（一键自动配置）</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="scSlug" placeholder="https://www.scatter.art/c/cash-npc 或 cash-npc">
+            <button class="btn btn-ghost" id="scAutoBtn" style="flex:0 0 auto;padding:9px 14px;">⚡ 自动配置</button>
+          </div>
+          <div class="hint">仓库已内置 cash-npc；其他集合在 GitHub Actions → fetch-scatter → Run workflow 填 slug 抓一次即可（或手动填合约地址）。</div>
+        </div>
+        <div class="fld">
           <label>Scatter 集合合约地址（预设 Cash NPC）</label>
           <input type="text" id="scAddr" value="0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad">
         </div>
@@ -837,7 +845,7 @@ function saveCfg() {
     osTab: osTab, osSeaDrop: $('osSeaDrop').value, osNft: $('osNft').value,
     osFee: $('osFee').value, osMintMode: $('osMintMode').value, osSigs: $('osSigs').value,
     osVerify: $('osVerify').value, osSigner: $('osSigner').value, osSlug: $('osSlug').value,
-    scAddr: $('scAddr').value, scKey: $('scKey').value, scQty: $('scQty').value,
+    scAddr: $('scAddr').value, scKey: $('scKey').value, scQty: $('scQty').value, scSlug: $('scSlug').value,
   };
   try { localStorage.setItem('mintbot_cfg', JSON.stringify(cfg)); } catch (e) {}
 }
@@ -871,6 +879,7 @@ function loadCfg() {
     $('scAddr').value = cfg.scAddr || '0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad';
     $('scKey').value = cfg.scKey || '1';
     $('scQty').value = cfg.scQty || '1';
+    $('scSlug').value = cfg.scSlug || '';
     if (cfg.osTab === 'os' || cfg.osMode === true) setTab('os');
     else if (cfg.osTab === 'scatter') setTab('scatter');
     else setTab('normal');
@@ -900,7 +909,7 @@ function initUI() {
   sel.dispatchEvent(new Event('change'));
   loadCfg();
 
-  ['rpcUrl','rpcChainId','explorer','symbol','contractAddr','qtyArg','callsPerWallet','concurrency','valueEth','gasMult','customAbi','customFn','customArgs','namesList','keysList','osSeaDrop','osNft','osFee','osMintMode','osSigs','osVerify','osSigner','osSlug','scAddr','scKey','scQty']
+  ['rpcUrl','rpcChainId','explorer','symbol','contractAddr','qtyArg','callsPerWallet','concurrency','valueEth','gasMult','customAbi','customFn','customArgs','namesList','keysList','osSeaDrop','osNft','osFee','osMintMode','osSigs','osVerify','osSigner','osSlug','scAddr','scKey','scQty','scSlug']
     .forEach(id => $(id).addEventListener('input', saveCfg));
 
   $('tabNormal').addEventListener('click', () => setTab('normal'));
@@ -909,6 +918,10 @@ function initUI() {
   $('scReadBtn').addEventListener('click', async () => {
     try { await scatterRead(); } catch (e) { log('❌ 读取失败：' + (e.message || e), 'err'); }
   });
+  $('scAutoBtn').addEventListener('click', async () => {
+    try { await autoConfigureScatter(); } catch (e) { log('❌ 自动配置失败：' + (e.message || e), 'err'); }
+  });
+  $('scSlug').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('scAutoBtn').click(); });
   $('osReadBtn').addEventListener('click', async () => {
     try { await readOsDrop(); } catch (e) { log('❌ 读取失败：' + (e.message || e), 'err'); }
   });
@@ -1293,25 +1306,69 @@ const SCATTER_ABI = [
 ];
 let scLists = []; // 读取到的列表缓存
 
+/* 一键自动配置：slug → 仓库 JSON（Playwright 抓取）→ 填合约地址 → 读列表 */
+async function autoConfigureScatter() {
+  const slug = slugFromInput($('scSlug').value);
+  if (!slug) { log('❌ 请先填 Scatter 链接或 slug', 'err'); return; }
+  log(`⚡ Scatter 自动配置 ${slug} …`, 'info');
+  let data = null;
+  // 1) 仓库缓存 JSON（raw.githubusercontent CORS 允许）
+  try {
+    const r = await fetch(`https://raw.githubusercontent.com/vloail/mintbot-web/main/scatter_data/${slug}.json`);
+    if (r.ok) data = await r.json();
+  } catch (e) {}
+  let addr = null;
+  if (data) {
+    const linkAddr = (data.links || []).map(l => (l.match(/0x[a-fA-F0-9]{40}/) || [])[0]).find(Boolean);
+    addr = linkAddr || (data.addrs || []).find(a => !a.toLowerCase().startsWith('0x000000000000000000000000'));
+  }
+  // 2) 直接抓页面（用户浏览器可能过 Vercel 挑战）
+  if (!addr) {
+    try {
+      const r = await fetch(`https://www.scatter.art/c/${slug}`, { headers: { 'Accept': 'text/html' } });
+      if (r.ok) {
+        const html = await r.text();
+        const m = html.match(/0x[a-fA-F0-9]{40}/g);
+        addr = [...new Set(m || [])].find(a => !a.toLowerCase().startsWith('0x000000000000000000000000'));
+      }
+    } catch (e) {}
+  }
+  if (!addr || !isAddrLoose(addr)) {
+    log('❌ 自动配置失败：拿不到合约地址。先在 GitHub Actions → fetch-scatter → Run workflow 填 slug 抓一次（README 有步骤），或手动填合约地址。', 'err');
+    return;
+  }
+  $('scAddr').value = addr.toLowerCase();
+  log(`✅ Scatter 自动配置完成：合约 ${addr.slice(0, 10)}…，正在读取列表…`, 'ok');
+  try { await scatterRead(); } catch (e) { log('ℹ️ 列表读取失败：' + (e.message || e).slice(0, 80), 'warn'); }
+  saveCfg();
+}
+
 async function scatterRead() {
   const addr = $('scAddr').value.trim().toLowerCase();
   if (!isAddrLoose(addr)) throw new Error('合约地址格式不正确');
+  log('📡 正在读取 Scatter 列表…', 'info');
   const p = makeProvider();
   const c = new ethers.Contract(addr, SCATTER_ABI, p);
   let cfg = null;
   try { cfg = await c.config(); } catch (e) {}
-  scLists = [];
-  const options = [];
-  for (let key = 0; key < 16; key++) {
+  // 并行读取 invites(0..15)
+  const invs = await Promise.all([...Array(16).keys()].map(async (key) => {
     try {
-      const keyBytes = ethers.zeroPadValue(ethers.toBeHex(key), 32);
-      const inv = await c.invites(keyBytes);
-      if (Number(inv.limit) === 0 && Number(inv.maxSupply) === 0 && inv.price === 0n) continue;
-      const supply = Number(await c.listSupply(keyBytes));
-      scLists.push({ key, price: inv.price, limit: Number(inv.limit), maxSupply: Number(inv.maxSupply), supply, start: Number(inv.start), end: Number(inv.end) });
-    } catch (e) { /* 无此 key */ }
-  }
-  if (!scLists.length) throw new Error('未找到有效列表（invites 全空）');
+      const inv = await c.invites(ethers.zeroPadValue(ethers.toBeHex(key), 32));
+      return { key, inv };
+    } catch { return null; }
+  }));
+  const valid = invs.filter(r => r && (Number(r.inv.limit) !== 0 || Number(r.inv.maxSupply) !== 0 || r.inv.price !== 0n));
+  if (!valid.length) throw new Error('未找到有效列表（invites 全空）');
+  const supplies = await Promise.all(valid.map(async ({ key }) => {
+    try { return { key, supply: Number(await c.listSupply(ethers.zeroPadValue(ethers.toBeHex(key), 32))) }; }
+    catch { return { key, supply: 0 }; }
+  }));
+  const supplyMap = Object.fromEntries(supplies.map(s => [s.key, s.supply]));
+  scLists = valid.map(({ key, inv }) => ({
+    key, price: inv.price, limit: Number(inv.limit), maxSupply: Number(inv.maxSupply),
+    supply: supplyMap[key] ?? 0, start: Number(inv.start), end: Number(inv.end)
+  }));
   const now = Date.now() / 1000;
   const fmt = (t) => new Date(t * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
   const rows = scLists.map(l => {
