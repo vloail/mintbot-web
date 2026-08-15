@@ -1,0 +1,50 @@
+{
+ "slug": "outlandersonrh",
+ "fetchedAt": "2026-08-15T13:00:51.625302Z",
+ "nftContract": "0xc2e29ff7d4933d6ad609917236fd2a8278e87598",
+ "chain": "robinhood",
+ "chainId": 4663,
+ "maxSupply": 666,
+ "stages": [
+  {
+   "label": "TEAM",
+   "type": "SIGNED_PRESALE",
+   "stageIndex": 1,
+   "startTime": "2026-08-15T14:45:00.000Z",
+   "endTime": "2026-08-15T15:00:00.000Z",
+   "maxTotalMintableByWallet": 10,
+   "usd": 0.0,
+   "priceEth": 0.0
+  },
+  {
+   "label": "WL",
+   "type": "SIGNED_PRESALE",
+   "stageIndex": 2,
+   "startTime": "2026-08-15T15:00:00.000Z",
+   "endTime": "2026-08-15T16:00:00.000Z",
+   "maxTotalMintableByWallet": 1,
+   "usd": 2.816445,
+   "priceEth": 0.0015
+  },
+  {
+   "label": "COMMUNITY",
+   "type": "SIGNED_PRESALE",
+   "stageIndex": 3,
+   "startTime": "2026-08-15T16:00:00.000Z",
+   "endTime": "2026-08-15T17:00:00.000Z",
+   "maxTotalMintableByWallet": 2,
+   "usd": 2.816445,
+   "priceEth": 0.0015
+  },
+  {
+   "label": "Public stage",
+   "type": "PUBLIC_SALE",
+   "stageIndex": 0,
+   "startTime": "2026-08-15T17:00:00.000Z",
+   "endTime": "2026-08-22T17:00:00.000Z",
+   "maxTotalMintableByWallet": 5,
+   "usd": 2.816445,
+   "priceEth": 0.0015
+  }
+ ]
+}
