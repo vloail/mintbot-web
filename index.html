@@ -141,6 +141,40 @@
   .foot b { color: var(--warn); }
   .tag { display:inline-block; background: rgba(34,211,238,0.1); color: var(--neon); border:1px solid rgba(34,211,238,0.3); border-radius:6px; padding:1px 7px; font-size:10px; margin-left:6px; }
   .hidden { display: none !important; }
+
+  /* ===== Modal ===== */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(4,8,16,0.75); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal {
+    width: min(480px, 92vw); max-height: 86vh; overflow-y: auto;
+    background: #0d1424; border: 1px solid var(--card-border); border-radius: 16px;
+    padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal h3 { font-size: 16px; margin-bottom: 16px; display:flex; align-items:center; gap:8px; }
+  .modal .close { margin-left:auto; cursor:pointer; color:var(--dim); background:none; border:none; font-size:18px; }
+  .modal .close:hover { color: var(--txt); }
+  .wallet-item {
+    display:flex; align-items:center; gap:10px; padding:9px 10px; margin-bottom:6px;
+    background: rgba(0,0,0,0.3); border:1px solid var(--card-border); border-radius:9px; font-size:12px;
+  }
+  .wallet-item input[type=checkbox] { width:auto; }
+  .wallet-item .addr { font-family: inherit; color: var(--neon); flex:1; }
+  .wallet-item .w-name { color: var(--txt); }
+  .wallet-item .del { cursor:pointer; color:var(--err); background:none; border:none; font-size:14px; }
+  .mnemonic-box {
+    background: rgba(34,211,238,0.07); border:1px dashed rgba(34,211,238,0.4); border-radius:10px;
+    padding:12px; font-size:13px; line-height:1.9; color: var(--neon); word-break: break-all; margin:8px 0;
+  }
+  .nav-btn {
+    background: rgba(255,255,255,0.06); color: var(--txt); border:1px solid var(--card-border);
+    padding:9px 14px; border-radius:10px; cursor:pointer; font-family:inherit; font-size:12px; font-weight:600;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.12); }
+  .nav-btn.primary { background: linear-gradient(135deg, var(--neon), var(--neon2)); color: #06090f; font-weight:700; }
+  .nav-btn .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--ok); margin-right:6px; }
+  #walletSelBox { max-height: 200px; overflow-y: auto; margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -149,8 +183,56 @@
   <nav>
     <div class="logo"><span class="bolt">⚡ MINTBOT</span><small>批量 Mint NFT 控制台</small></div>
     <div class="spacer"></div>
-    <button id="connBtn">连接钱包</button>
+    <button class="nav-btn hidden" id="walletBtn">👛 我的钱包</button>
+    <button class="nav-btn primary" id="accountBtn">👤 注册 / 登录</button>
   </nav>
+
+  <!-- 登录 / 注册 弹窗 -->
+  <div class="overlay hidden" id="accOverlay">
+    <div class="modal">
+      <h3><span id="accTitle">🔐 登录账号</span><button class="close" onclick="hideModal('accOverlay')">✕</button></h3>
+      <div class="fld"><label>用户名</label><input type="text" id="accUser" placeholder="给自己起个名字"></div>
+      <div class="fld"><label>密码（用于加密你的钱包，忘了无法找回）</label><input type="password" id="accPass" placeholder="至少 8 位"></div>
+      <div class="fld hidden" id="accPass2Row"><label>确认密码</label><input type="password" id="accPass2"></div>
+      <div class="actions" style="margin-top:6px;">
+        <button class="btn btn-primary" id="accSubmitBtn">登录</button>
+        <button class="btn btn-ghost" id="accToggleBtn">没有账号？注册</button>
+      </div>
+      <div class="hint" style="margin-top:10px;">🔒 私钥用你的密码加密后仅存本浏览器（localStorage），不上传任何服务器。清缓存/换浏览器会丢失，助记词务必抄下。</div>
+    </div>
+  </div>
+
+  <!-- 钱包管理弹窗 -->
+  <div class="overlay hidden" id="walletOverlay">
+    <div class="modal">
+      <h3>👛 我的钱包（<span id="walletCount">0</span>）<button class="close" onclick="hideModal('walletOverlay')">✕</button></h3>
+      <div class="wallet-item" style="border-color:rgba(34,211,238,0.35);">
+        <span style="flex:1;">➕ 创建新钱包（自动生成助记词）</span>
+        <input type="text" id="newWalletName" placeholder="名称（可选）" style="width:110px;">
+        <button class="btn btn-ghost" style="flex:0 0 auto;padding:7px 12px;" id="createWalletBtn">创建</button>
+      </div>
+      <div class="fld">
+        <label>导入钱包（私钥 或 12/24 个助记词）</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="importInput" placeholder="0x 私钥 或 助记词">
+          <button class="btn btn-ghost" style="flex:0 0 auto;padding:7px 12px;" id="importWalletBtn">导入</button>
+        </div>
+      </div>
+      <div id="walletSelBox"></div>
+      <div class="hint">在左侧批量 mint 面板的「钱包来源」选「👤 账号钱包」后，勾选要使用的钱包即可批量 mint。</div>
+    </div>
+  </div>
+
+  <!-- 助记词展示弹窗 -->
+  <div class="overlay hidden" id="mnemonicOverlay">
+    <div class="modal">
+      <h3>📝 新钱包已创建 — 请抄下助记词！<button class="close" onclick="hideModal('mnemonicOverlay')">✕</button></h3>
+      <div class="mnemonic-box" id="mnemonicText"></div>
+      <div class="hint">地址：<span id="mnemonicAddr"></span></div>
+      <div class="hint" style="color:var(--warn);">⚠️ 助记词=钱包全部资产。只显示这一次，请立即抄写/保存到安全的地方。关闭后无法再次查看完整助记词（私钥可在钱包管理里导出）。</div>
+      <div style="margin-top:12px;text-align:right;"><button class="btn btn-primary" style="flex:0 0 auto;width:auto;padding:9px 22px;" onclick="hideModal('mnemonicOverlay')">我已抄好</button></div>
+    </div>
+  </div>
 
   <!-- 统计 -->
   <div class="stats">
@@ -231,8 +313,13 @@
 
       <div class="sec-label">钱包来源</div>
       <div class="mode-switch">
-        <button id="modeA" class="active">🔗 连接钱包（单钱包循环）</button>
-        <button id="modeB">📦 批量私钥（每钱包各 mint）</button>
+        <button id="modeA" class="active">👤 账号钱包（登录后勾选）</button>
+        <button id="modeB">📦 粘贴私钥（每行一个）</button>
+      </div>
+      <div class="fld hidden" id="acctWalletRow">
+        <label>选择要 mint 的钱包（点 👛 我的钱包 管理/创建）</label>
+        <div id="acctWalletPick" style="max-height:180px;overflow-y:auto;"></div>
+        <button class="btn btn-ghost" id="goWalletBtn" style="width:100%;margin-top:4px;">👛 打开钱包管理（创建/导入）</button>
       </div>
       <div class="fld hidden" id="keysRow">
         <label>私钥列表（每行一个，可带 0x 前缀，# 开头为注释）</label>
@@ -332,7 +419,7 @@
 'use strict';
 /* ============================================================
    MINTBOT — 批量 Mint NFT 控制台（纯前端）
-   模式 A：连接钱包，单钱包循环 mint
+   模式 A：账号钱包（登录后勾选）批量 mint
    模式 B：粘贴私钥列表，每个钱包各自 mint（并发）
    ============================================================ */
 
@@ -376,6 +463,180 @@ let running = false, stopFlag = false;
 let stats = { total: 0, ok: 0, fail: 0, run: 0 };
 let failList = [];
 let nameIdx = 0;
+
+/* ---------- 账号 / 钱包库（本地加密存储） ---------- */
+const ACCOUNT_KEY = 'mb_account';
+let account = null;            // 内存中的账号对象 { username, wallets: [{id,name,address,mnemonic,privateKey}] }
+let acctPicked = new Set();    // 勾选用于 mint 的钱包 id
+
+function hasAccount() { try { return !!localStorage.getItem(ACCOUNT_KEY); } catch (e) { return false; } }
+function isLoggedIn() { return !!account; }
+
+function showModal(id) { $(id).classList.remove('hidden'); }
+function hideModal(id) { $(id).classList.add('hidden'); }
+
+async function deriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' },
+    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+function b64(u8) { let s = ''; u8.forEach(b => s += String.fromCharCode(b)); return btoa(s); }
+function unb64(s) { return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
+
+async function encryptVault(vault, key) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(vault)));
+  return { iv: b64(iv), data: b64(new Uint8Array(ct)) };
+}
+async function decryptVault(rec, key) {
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(rec.iv) }, key, unb64(rec.data));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+async function register(username, password) {
+  if (hasAccount()) throw new Error('本浏览器已注册过账号，请直接登录');
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveKey(password, salt);
+  const vault = { username, wallets: [] };
+  const rec = await encryptVault(vault, key);
+  localStorage.setItem(ACCOUNT_KEY, JSON.stringify({ username, salt: b64(salt), ...rec }));
+  account = vault;
+  account._pw = password; // 仅内存，用于后续加密写回
+  afterAuth();
+  log(`✅ 注册成功，欢迎 ${username}！先点 👛 我的钱包 创建钱包。`, 'ok');
+}
+async function login(username, password) {
+  const stored = JSON.parse(localStorage.getItem(ACCOUNT_KEY));
+  if (!stored || stored.username !== username) throw new Error('账号不存在（用户名不匹配）');
+  const key = await deriveKey(password, unb64(stored.salt));
+  let vault;
+  try { vault = await decryptVault(stored, key); }
+  catch (e) { throw new Error('密码错误，无法解密'); }
+  account = vault;
+  account._pw = password;
+  afterAuth();
+  log(`✅ 已登录：${username}（${account.wallets.length} 个钱包）`, 'ok');
+}
+function logout() {
+  account = null; acctPicked.clear();
+  afterAuth();
+  log('👋 已退出登录', 'dim');
+}
+async function saveVault() {
+  if (!account) return;
+  const stored = JSON.parse(localStorage.getItem(ACCOUNT_KEY));
+  const key = await deriveKey(account._pw, unb64(stored.salt)); // _pw 仅内存保存的派生用密码
+  const rec = await encryptVault({ username: account.username, wallets: account.wallets }, key);
+  localStorage.setItem(ACCOUNT_KEY, JSON.stringify({ username: account.username, salt: stored.salt, ...rec }));
+}
+function afterAuth() {
+  // 登录状态 UI
+  $('accountBtn').classList.toggle('primary', !isLoggedIn());
+  $('accountBtn').innerHTML = isLoggedIn()
+    ? `<span class="dot"></span>${account.username}（退出）`
+    : '👤 注册 / 登录';
+  $('walletBtn').classList.toggle('hidden', !isLoggedIn());
+  if (isLoggedIn()) renderWalletList();
+  setMode(mode); // 刷新钱包来源区
+}
+
+/* ---------- 钱包管理 ---------- */
+function walletShort(a) { return a.slice(0, 6) + '…' + a.slice(-4); }
+
+async function createWallet(name) {
+  if (!isLoggedIn()) throw new Error('请先登录账号');
+  const w = ethers.Wallet.createRandom();
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  account.wallets.push({ id, name: name || `钱包${account.wallets.length + 1}`, address: w.address, mnemonic: w.mnemonic.phrase, privateKey: w.privateKey });
+  await saveVault();
+  renderWalletList();
+  // 显示助记词
+  $('mnemonicText').textContent = w.mnemonic.phrase;
+  $('mnemonicAddr').textContent = w.address;
+  showModal('mnemonicOverlay');
+  log(`➕ 新钱包已创建：${walletShort(w.address)}（助记词请抄下）`, 'ok');
+}
+
+async function importWallet(name, input) {
+  if (!isLoggedIn()) throw new Error('请先登录账号');
+  input = (input || '').trim();
+  if (!input) throw new Error('请输入私钥或助记词');
+  let w;
+  if (/^0x[0-9a-fA-F]{64}$/.test(input)) w = new ethers.Wallet(input);
+  else if (/^(0x)?[0-9a-fA-F]{64}$/.test(input)) w = new ethers.Wallet('0x' + input.toLowerCase());
+  else if (input.split(/\s+/).length >= 12) w = ethers.HDNodeWallet.fromPhrase(input);
+  else throw new Error('无法识别：需要 0x 私钥或 12/24 词助记词');
+  if (account.wallets.some(x => x.address.toLowerCase() === w.address.toLowerCase())) throw new Error('该钱包已存在');
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  account.wallets.push({ id, name: name || `钱包${account.wallets.length + 1}`, address: w.address, mnemonic: w.mnemonic ? w.mnemonic.phrase : '', privateKey: w.privateKey });
+  await saveVault();
+  renderWalletList();
+  $('importInput').value = '';
+  log(`📥 已导入钱包：${walletShort(w.address)}`, 'ok');
+}
+
+async function deleteWallet(id) {
+  if (!isLoggedIn()) return;
+  const w = account.wallets.find(x => x.id === id);
+  if (!w) return;
+  if (!confirm(`确定删除钱包 ${w.name} ${walletShort(w.address)}？删除后本机不再保存，请确认已备份助记词/私钥。`)) return;
+  account.wallets = account.wallets.filter(x => x.id !== id);
+  acctPicked.delete(id);
+  await saveVault();
+  renderWalletList();
+  log(`🗑️ 已删除钱包 ${walletShort(w.address)}`, 'warn');
+}
+
+function exportWallet(id) {
+  if (!isLoggedIn()) return;
+  const w = account.wallets.find(x => x.id === id);
+  if (!w) return;
+  if (!confirm('显示该钱包私钥？请确保周围无人。')) return;
+  alert(`钱包: ${w.name} ${w.address}\n\n私钥: ${w.privateKey}\n\n助记词: ${w.mnemonic || '（导入的私钥钱包无助记词）'}`);
+}
+
+/* 渲染钱包管理弹窗列表（含勾选） */
+function renderWalletList() {
+  const box = $('walletSelBox');
+  $('walletCount').textContent = account ? account.wallets.length : 0;
+  if (!account) { box.innerHTML = ''; return; }
+  box.innerHTML = account.wallets.map(w => `
+    <div class="wallet-item">
+      <input type="checkbox" data-pick="${w.id}" ${acctPicked.has(w.id) ? 'checked' : ''}>
+      <span class="w-name">${w.name}</span>
+      <span class="addr">${walletShort(w.address)}</span>
+      <button class="del" title="导出私钥" onclick="exportWallet('${w.id}')">🔑</button>
+      <button class="del" title="删除" onclick="deleteWallet('${w.id}')">🗑️</button>
+    </div>`).join('') || '<div class="hint">还没有钱包，点上面「创建」生成一个（含助记词），或「导入」已有私钥。</div>';
+  box.querySelectorAll('input[data-pick]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) acctPicked.add(cb.dataset.pick); else acctPicked.delete(cb.dataset.pick);
+      renderAcctPick();
+    });
+  });
+}
+
+/* 渲染左侧 mint 面板的账号钱包勾选列表 */
+function renderAcctPick() {
+  const box = $('acctWalletPick');
+  if (!isLoggedIn()) { box.innerHTML = '<div class="hint">未登录。点右上角 👤 注册/登录。</div>'; return; }
+  if (!account.wallets.length) { box.innerHTML = '<div class="hint">还没有钱包，点 👛 打开钱包管理创建。</div>'; return; }
+  box.innerHTML = account.wallets.map(w => `
+    <div class="wallet-item">
+      <input type="checkbox" data-mint="${w.id}" ${acctPicked.has(w.id) ? 'checked' : ''}>
+      <span class="w-name">${w.name}</span>
+      <span class="addr">${walletShort(w.address)}</span>
+    </div>`).join('');
+  box.querySelectorAll('input[data-mint]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) acctPicked.add(cb.dataset.mint); else acctPicked.delete(cb.dataset.mint);
+      renderWalletList();
+    });
+  });
+}
 
 /* ---------- 工具 ---------- */
 function ts() { return new Date().toLocaleTimeString('zh-CN', { hour12: false }); }
@@ -541,7 +802,56 @@ function initUI() {
     if (!failList.length) { log('没有失败记录', 'dim'); return; }
     navigator.clipboard.writeText(failList.join('\n')).then(() => log(`📋 已复制 ${failList.length} 条失败记录`, 'ok'));
   });
-  $('connBtn').addEventListener('click', connectWallet);
+
+  /* ---- 账号系统 ---- */
+  let accMode = 'login'; // login | register
+  $('accountBtn').addEventListener('click', () => {
+    if (isLoggedIn()) { logout(); return; }
+    accMode = hasAccount() ? 'login' : 'register';
+    renderAccModal();
+    showModal('accOverlay');
+  });
+  $('accToggleBtn').addEventListener('click', () => {
+    accMode = accMode === 'login' ? 'register' : 'login';
+    renderAccModal();
+  });
+  $('accSubmitBtn').addEventListener('click', async () => {
+    const u = $('accUser').value.trim(), p = $('accPass').value;
+    if (!u) { log('❌ 请输入用户名', 'err'); return; }
+    if (p.length < 8) { log('❌ 密码至少 8 位', 'err'); return; }
+    if (accMode === 'register' && p !== $('accPass2').value) { log('❌ 两次密码不一致', 'err'); return; }
+    try {
+      if (accMode === 'register') await register(u, p);
+      else await login(u, p);
+      hideModal('accOverlay');
+      $('accUser').value = ''; $('accPass').value = ''; $('accPass2').value = '';
+    } catch (e) { log('❌ ' + (e.message || e), 'err'); }
+  });
+  function renderAccModal() {
+    $('accTitle').textContent = accMode === 'login' ? '🔐 登录账号' : '✨ 注册账号';
+    $('accSubmitBtn').textContent = accMode === 'login' ? '登录' : '注册';
+    $('accToggleBtn').textContent = accMode === 'login' ? '没有账号？注册' : '已有账号？登录';
+    $('accPass2Row').classList.toggle('hidden', accMode !== 'register');
+  }
+
+  /* ---- 钱包管理 ---- */
+  $('walletBtn').addEventListener('click', () => { if (isLoggedIn()) { renderWalletList(); showModal('walletOverlay'); } });
+  $('goWalletBtn').addEventListener('click', () => {
+    if (!isLoggedIn()) { log('❌ 请先登录账号', 'err'); return; }
+    renderWalletList(); showModal('walletOverlay');
+  });
+  $('createWalletBtn').addEventListener('click', async () => {
+    try {
+      await createWallet($('newWalletName').value.trim());
+      $('newWalletName').value = '';
+    } catch (e) { log('❌ ' + (e.message || e), 'err'); }
+  });
+  $('importWalletBtn').addEventListener('click', async () => {
+    try { await importWallet('', $('importInput').value); }
+    catch (e) { log('❌ ' + (e.message || e), 'err'); }
+  });
+  $('importInput').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('importWalletBtn').click(); });
+  $('accPass').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('accSubmitBtn').click(); });
 }
 
 function setMode(m) {
@@ -549,7 +859,9 @@ function setMode(m) {
   $('modeA').classList.toggle('active', m === 'A');
   $('modeB').classList.toggle('active', m === 'B');
   $('keysRow').classList.toggle('hidden', m !== 'B');
-  log(`模式：${m === 'A' ? '🔗 连接钱包（单钱包顺序执行）' : '📦 批量私钥（每钱包各自 mint，钱包间并行）'}`, 'info');
+  $('acctWalletRow').classList.toggle('hidden', m !== 'A');
+  if (m === 'A' && isLoggedIn()) renderAcctPick();
+  log(`模式：${m === 'A' ? '👤 账号钱包（勾选后批量 mint）' : '📦 粘贴私钥（每钱包各自 mint，钱包间并行）'}`, 'info');
 }
 
 /* ---------- RPC / 钱包 ---------- */
@@ -565,39 +877,6 @@ async function testRpc() {
     log(`✅ RPC 正常：链 ${net.chainId}，区块高度 ${bn}`, 'ok');
   } catch (e) {
     log(`❌ RPC 连接失败：${e.message || e}`, 'err');
-  }
-}
-async function connectWallet() {
-  if (typeof window.ethereum === 'undefined') {
-    log('❌ 未检测到钱包（MetaMask 等）。批量私钥模式不需要钱包。', 'err');
-    return;
-  }
-  try {
-    const p = new ethers.BrowserProvider(window.ethereum);
-    const accs = await p.send('eth_requestAccounts', []);
-    connAddr = accs[0];
-    const c = currentChain();
-    const net = await p.getNetwork();
-    if (net.chainId !== BigInt(c.chainId)) {
-      try {
-        await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chainHex(c.chainId) }] });
-      } catch (err) {
-        if (err.code === 4902) {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{ chainId: chainHex(c.chainId), chainName: c.name, rpcUrls: [c.rpc], nativeCurrency: { name: c.symbol || 'ETH', symbol: c.symbol || 'ETH', decimals: 18 } }],
-          });
-        } else throw err;
-      }
-    }
-    signer = await p.getSigner();
-    provider = p;
-    connAddr = (await signer.getAddress()).toLowerCase();
-    $('connBtn').innerHTML = `<span class="dot"></span>${connAddr.slice(0, 6)}…${connAddr.slice(-4)}`;
-    $('connBtn').classList.add('connected');
-    log(`✅ 已连接钱包：${connAddr}`, 'ok');
-  } catch (e) {
-    log(`❌ 连接失败：${e.message || e}`, 'err');
   }
 }
 
@@ -829,12 +1108,19 @@ function osBuildJobs(wallets) {
   return jobs;
 }
 
-/* 构建钱包列表（模式 A 连接钱包 / 模式 B 批量私钥） */
+/* 构建钱包列表（模式 A 账号钱包勾选 / 模式 B 粘贴私钥） */
 function buildWallets() {
   let wallets;
   if (mode === 'A') {
-    if (!signer) throw new Error('请先连接钱包（或切换到批量私钥模式）');
-    wallets = [{ signer, addr: connAddr }];
+    if (!isLoggedIn()) throw new Error('请先注册/登录账号（右上角 👤）');
+    if (!acctPicked.size) throw new Error('请先在「👤 账号钱包」勾选要 mint 的钱包');
+    const p = makeProvider();
+    wallets = account.wallets
+      .filter(w => acctPicked.has(w.id))
+      .map(w => {
+        const s = new ethers.Wallet(w.privateKey, p);
+        return { signer: s, addr: w.address.toLowerCase(), name: w.name };
+      });
   } else {
     const keys = parseKeys($('keysList').value);
     if (!keys.length) throw new Error('未解析到有效私钥（每行一个 0x64 位）');
@@ -942,7 +1228,7 @@ async function startRun() {
     setProg(0, total);
     $('startBtn').disabled = true;
     $('stopBtn').classList.remove('hidden');
-    log(`🚀 开始批量 mint：${jobs.length} 个钱包 / 共 ${total} 笔（${mode === 'A' ? '连接钱包' : '批量私钥'}，并发 ${$('concurrency').value}）`, 'info');
+    log(`🚀 开始批量 mint：${jobs.length} 个钱包 / 共 ${total} 笔（${mode === 'A' ? '账号钱包' : '粘贴私钥'}，并发 ${$('concurrency').value}）`, 'info');
     log(`   合约 ${jobs[0].tasks[0].contractAddr} ｜ 函数 ${jobs[0].tasks[0].fnName} ｜ value ${ethers.formatEther(jobs[0].tasks[0].valueWei)} ${currentChain().symbol || ''}`, 'dim');
 
     const conc = Math.max(1, parseInt($('concurrency').value, 10));
