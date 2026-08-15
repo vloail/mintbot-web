@@ -12,19 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch OpenSea collection data (Robinhood chain)
+      - name: Fetch OpenSea collection page
         run: |
           mkdir -p opensea_data
-          curl -sL --max-time 30 "https://api.opensea.io/api/v2/chain/robinhood/collections/outlandersonrh" \
-            -H "accept: application/json" -o opensea_data/collection.json
-          curl -sL --max-time 30 "https://api.opensea.io/api/v2/chain/robinhood/collections/outlandersonrh/nfts?limit=3" \
-            -H "accept: application/json" -o opensea_data/nfts.json
-          echo "=== collection.json ==="; head -c 3000 opensea_data/collection.json
-          echo; echo "=== nfts.json ==="; head -c 1500 opensea_data/nfts.json
+          curl -sL --max-time 40 "https://opensea.io/collection/outlandersonrh" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36" \
+            -H "Accept: text/html" -o opensea_data/page.html || true
+          wc -c opensea_data/page.html || true
       - name: Commit results
         run: |
           git config user.name "vloail"
           git config user.email "vloail@users.noreply.github.com"
           git add opensea_data/ || true
-          git commit -m "fetch: opensea outlandersonrh data" || echo "no changes to commit"
+          git commit -m "fetch: opensea outlandersonrh page" || echo "no changes to commit"
           git push origin main || echo "push failed"
