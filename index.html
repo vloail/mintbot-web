@@ -244,6 +244,14 @@
         <label><input type="checkbox" id="osMode" style="width:auto;margin-right:6px;">启用 OpenSea SeaDrop mint（Robinhood Chain 预设 OUTLANDERS）</label>
       </div>
       <div id="osPanel" class="hidden">
+        <div class="fld">
+          <label>OpenSea 集合链接 / slug（一键自动配置）</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="osSlug" placeholder="https://opensea.io/collection/outlandersonrh 或 outlandersonrh">
+            <button class="btn btn-ghost" id="osAutoBtn" style="flex:0 0 auto;padding:9px 14px;">⚡ 自动配置</button>
+          </div>
+          <div class="hint">填入 opensea.io 集合链接 → 自动解析合约/阶段/价格。仓库已内置 outlandersonrh；其他集合需要在 GitHub Actions 里 Run workflow 填 slug 抓一次（见 README）。</div>
+        </div>
         <div class="row">
           <div class="fld"><label>SeaDrop 合约</label><input type="text" id="osSeaDrop" value="0x00005EA00Ac477B1030cE78506496e8C2dE24bf5"></div>
           <div class="fld"><label>NFT 合约</label><input type="text" id="osNft" value="0xc2e29ff7d4933d6ad609917236fd2a8278e87598"></div>
@@ -445,7 +453,7 @@ function saveCfg() {
     customAbi: $('customAbi').value, customFn: $('customFn').value, customArgs: $('customArgs').value,
     osMode: $('osMode').checked, osSeaDrop: $('osSeaDrop').value, osNft: $('osNft').value,
     osFee: $('osFee').value, osMintMode: $('osMintMode').value, osSigs: $('osSigs').value,
-    osVerify: $('osVerify').value, osSigner: $('osSigner').value,
+    osVerify: $('osVerify').value, osSigner: $('osSigner').value, osSlug: $('osSlug').value,
   };
   try { localStorage.setItem('mintbot_cfg', JSON.stringify(cfg)); } catch (e) {}
 }
@@ -476,6 +484,7 @@ function loadCfg() {
     $('osSigs').value = cfg.osSigs || '';
     $('osVerify').value = cfg.osVerify || '1';
     $('osSigner').value = cfg.osSigner || '0xfce4b31128100915f2980bbc3a08894ee5e8f8c3';
+    $('osSlug').value = cfg.osSlug || '';
     $('osPanel').classList.toggle('hidden', !cfg.osMode);
     onFnChange();
   } catch (e) {}
@@ -503,7 +512,7 @@ function initUI() {
   sel.dispatchEvent(new Event('change'));
   loadCfg();
 
-  ['rpcUrl','rpcChainId','explorer','symbol','contractAddr','qtyArg','callsPerWallet','concurrency','valueEth','gasMult','customAbi','customFn','customArgs','namesList','keysList','osSeaDrop','osNft','osFee','osMintMode','osSigs','osVerify','osSigner']
+  ['rpcUrl','rpcChainId','explorer','symbol','contractAddr','qtyArg','callsPerWallet','concurrency','valueEth','gasMult','customAbi','customFn','customArgs','namesList','keysList','osSeaDrop','osNft','osFee','osMintMode','osSigs','osVerify','osSigner','osSlug']
     .forEach(id => $(id).addEventListener('input', saveCfg));
 
   $('osMode').addEventListener('change', () => {
@@ -514,6 +523,10 @@ function initUI() {
   $('osReadBtn').addEventListener('click', async () => {
     try { await readOsDrop(); } catch (e) { log('❌ 读取失败：' + (e.message || e), 'err'); }
   });
+  $('osAutoBtn').addEventListener('click', async () => {
+    try { await autoConfigureOs(); } catch (e) { log('❌ 自动配置失败：' + (e.message || e), 'err'); }
+  });
+  $('osSlug').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('osAutoBtn').click(); });
 
   $('contractPreset').addEventListener('change', applyContractPreset);
   $('fnSel').addEventListener('change', () => { onFnChange(); saveCfg(); });
@@ -618,6 +631,75 @@ function osEnabled() { return $('osMode').checked; }
 function osChainId() { return currentChain().chainId; }
 
 function isAddrLoose(a) { return /^0x[a-fA-F0-9]{40}$/.test((a || '').trim()); }
+
+/* 从 slug 提取 */
+function slugFromInput(raw) {
+  raw = (raw || '').trim();
+  if (!raw) return '';
+  let slug = raw;
+  if (raw.includes('/')) {
+    const m = raw.match(/\/collection\/([a-zA-Z0-9_-]+)/);
+    if (m) slug = m[1];
+    else slug = raw.split('?')[0].split('/').filter(Boolean).pop() || '';
+  }
+  return slug.split('?')[0].trim();
+}
+
+/* 渲染阶段信息 */
+function renderOsStages(stages) {
+  const info = $('osInfo');
+  const now = Date.now() / 1000;
+  const fmt = (t) => {
+    const d = new Date(t * 1000);
+    return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+  const rows = (stages || []).map(s => {
+    const st = new Date(s.startTime).getTime() / 1000, en = new Date(s.endTime).getTime() / 1000;
+    const status = now < st ? '⏳ 未开始' : now > en ? '✅ 已结束' : '🟢 进行中';
+    const price = Number(s.priceEth) > 0 ? s.priceEth + ' ETH' : '免费';
+    return `<tr><td>${s.label}</td><td>${fmt(st)}→${fmt(en)}</td><td>${price}</td><td>${s.maxTotalMintableByWallet}</td><td>${status}</td></tr>`;
+  }).join('');
+  info.innerHTML = `<table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:4px;">
+    <tr style="color:var(--dim)"><th align="left">阶段</th><th align="left">时间(UTC+8)</th><th align="left">价格</th><th align="left">钱包上限</th><th align="left">状态</th></tr>${rows}</table>`;
+}
+
+/* 一键自动配置：slug → 数据 JSON → 填字段 */
+async function autoConfigureOs() {
+  const slug = slugFromInput($('osSlug').value);
+  if (!slug) { log('❌ 请先填 OpenSea 集合链接或 slug', 'err'); return; }
+  log(`⚡ 自动配置 ${slug} …`, 'info');
+  let data = null;
+  // 1) 仓库缓存 JSON（raw.githubusercontent CORS 允许）
+  try {
+    const r = await fetch(`https://raw.githubusercontent.com/vloail/mintbot-web/main/opensea_data/${slug}.json`);
+    if (r.ok) data = await r.json();
+  } catch (e) {}
+  // 2) 直接抓 opensea 页面（用户网络可达时）
+  if (!data || !data.nftContract) {
+    try {
+      const r = await fetch(`https://opensea.io/collection/${slug}`, { headers: { 'Accept': 'text/html' } });
+      if (r.ok) {
+        const html = await r.text();
+        const mAddr = html.match(/"address":"(0x[a-fA-F0-9]{40})"/g);
+        const nft = mAddr ? [...new Set(mAddr.map(s => s.match(/0x[a-fA-F0-9]{40}/)[0]))].find(a => a !== '0x' + '0'.repeat(40) && !a.toLowerCase().startsWith('0x000000000000000000000000')) : null;
+        if (nft) data = { slug, nftContract: nft, seaDropContract: '0x00005ea00ac477b1030ce78506496e8c2de24bf5', stages: [] };
+      }
+    } catch (e) {}
+  }
+  if (!data || !data.nftContract) {
+    log('❌ 自动配置失败：拿不到该集合数据。先在 GitHub Actions 里 Run workflow 抓取该 slug（README 有步骤），或手动填合约地址。', 'err');
+    return;
+  }
+  $('osNft').value = data.nftContract;
+  if (data.seaDropContract) $('osSeaDrop').value = data.seaDropContract;
+  if (data.feeRecipient) $('osFee').value = data.feeRecipient;
+  if (data.signers && data.signers.length) $('osSigner').value = data.signers[0];
+  renderOsStages(data.stages || []);
+  log(`✅ 自动配置完成：NFT ${data.nftContract.slice(0,10)}… 阶段 ${(data.stages || []).length} 个。正在拉链上配置…`, 'ok');
+  try { await readOsDrop(); } catch (e) { log('ℹ️ 链上配置读取失败（可手动填 SeaDrop 合约）：' + (e.message || e).slice(0, 80), 'warn'); }
+  renderOsStages(data.stages || []); // readOsDrop 会覆盖 osInfo，重新渲染阶段表
+  saveCfg();
+}
 
 /* 读取链上 drop 配置 */
 async function readOsDrop() {
