@@ -12,16 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch Archetype implementation source
+      - name: Fetch Archetype Logic source
         run: |
           mkdir -p scatter_data
-          curl -sL --max-time 60 "https://robinhoodchain.blockscout.com/api?module=contract&action=getsourcecode&address=0xb195891c61c68bd518cbE66f176bed204A222b54" \
-            -H "User-Agent: Mozilla/5.0" -o scatter_data/archetype_source.json || true
-          wc -c scatter_data/archetype_source.json 2>/dev/null
+          curl -sL --max-time 90 "https://robinhoodchain.blockscout.com/api?module=contract&action=getsourcecode&address=0x5b6d1081687f94abc51d59fbb061bf894600e4cb" \
+            -H "User-Agent: Mozilla/5.0" -o scatter_data/archetype_logic_source.json || true
+          wc -c scatter_data/archetype_logic_source.json 2>/dev/null
       - name: Commit results
         run: |
           git config user.name "vloail"
           git config user.email "vloail@users.noreply.github.com"
           git add scatter_data/ || true
-          git commit -m "fetch: archetype implementation source" || echo "no changes to commit"
+          git commit -m "fetch: archetype logic source" || echo "no changes to commit"
           git push origin main || echo "push failed"
