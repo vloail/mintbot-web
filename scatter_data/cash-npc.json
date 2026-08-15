@@ -1,0 +1,13 @@
+{
+ "slug": "cash-npc",
+ "fetchedAt": "2026-08-15T16:00:15.872259+00:00",
+ "addrs": [
+  "0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad",
+  "0xb195891c61c68bd518cbE66f176bed204A222b54",
+  "0x8952caf7e5bf1fe63ebe94148ca802f3ef127c98",
+  "0x5b6d1081687f94abc51d59fbb061bf894600e4cb"
+ ],
+ "links": [
+  "https://robinhoodchain.blockscout.com/address/0x1b6e40Ae0daDD31Db8626E2bFFC8e31A7f7124Ad"
+ ]
+}
