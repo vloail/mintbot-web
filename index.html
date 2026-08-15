@@ -231,6 +231,13 @@
           <button class="btn btn-ghost" style="flex:0 0 auto;padding:7px 12px;" id="importWalletBtn">导入</button>
         </div>
       </div>
+      <div class="wallet-item" style="justify-content:space-between;border-style:dashed;padding:8px 12px;">
+        <span>已选 <b id="wlPickedCount" style="color:var(--neon)">0</b> / <span id="wlTotalCount">0</span></span>
+        <span style="display:flex;gap:6px;">
+          <button class="btn btn-ghost" id="wlPickAllBtn" style="flex:0 0 auto;padding:5px 12px;font-size:13px;">☑ 全选</button>
+          <button class="btn btn-ghost" id="wlPickNoneBtn" style="flex:0 0 auto;padding:5px 12px;font-size:13px;">☐ 清空</button>
+        </span>
+      </div>
       <div id="walletSelBox"></div>
       <div class="hint">在左侧批量 mint 面板的「钱包来源」选「👤 账号钱包」后，勾选要使用的钱包即可批量 mint。</div>
     </div>
@@ -351,6 +358,13 @@
       </div>
       <div class="fld hidden" id="acctWalletRow">
         <label>选择要 mint 的钱包（点 👛 我的钱包 管理/创建）</label>
+        <div class="wallet-item" style="justify-content:space-between;border-style:dashed;padding:8px 12px;">
+          <span>已选 <b id="acctPickedCount" style="color:var(--neon)">0</b> / <span id="acctTotalCount">0</span></span>
+          <span style="display:flex;gap:6px;">
+            <button class="btn btn-ghost" id="pickAllBtn" style="flex:0 0 auto;padding:5px 12px;font-size:13px;">☑ 全选</button>
+            <button class="btn btn-ghost" id="pickNoneBtn" style="flex:0 0 auto;padding:5px 12px;font-size:13px;">☐ 清空</button>
+          </span>
+        </div>
         <div id="acctWalletPick" style="max-height:180px;overflow-y:auto;"></div>
         <button class="btn btn-ghost" id="goWalletBtn" style="width:100%;margin-top:4px;">👛 打开钱包管理（创建/导入）</button>
       </div>
@@ -672,10 +686,23 @@ function exportWallet(id) {
   alert(`钱包: ${w.name} ${w.address}\n\n私钥: ${w.privateKey}\n\n助记词: ${w.mnemonic || '（导入的私钥钱包无助记词）'}`);
 }
 
+/* 全选 / 清空 */
+function pickAll() {
+  if (!isLoggedIn()) return;
+  account.wallets.forEach(w => acctPicked.add(w.id));
+  renderAcctPick(); renderWalletList();
+}
+function pickNone() {
+  acctPicked.clear();
+  renderAcctPick(); renderWalletList();
+}
+
 /* 渲染钱包管理弹窗列表（含勾选） */
 function renderWalletList() {
   const box = $('walletSelBox');
   $('walletCount').textContent = account ? account.wallets.length : 0;
+  $('wlPickedCount').textContent = acctPicked.size;
+  $('wlTotalCount').textContent = account ? account.wallets.length : 0;
   if (!account) { box.innerHTML = ''; return; }
   box.innerHTML = account.wallets.map(w => `
     <div class="wallet-item">
@@ -696,6 +723,8 @@ function renderWalletList() {
 /* 渲染左侧 mint 面板的账号钱包勾选列表 */
 function renderAcctPick() {
   const box = $('acctWalletPick');
+  $('acctPickedCount').textContent = acctPicked.size;
+  $('acctTotalCount').textContent = account ? account.wallets.length : 0;
   if (!isLoggedIn()) { box.innerHTML = '<div class="hint">未登录。点右上角 👤 注册/登录。</div>'; return; }
   if (!account.wallets.length) { box.innerHTML = '<div class="hint">还没有钱包，点 👛 打开钱包管理创建。</div>'; return; }
   box.innerHTML = account.wallets.map(w => `
@@ -929,6 +958,10 @@ function initUI() {
   });
   $('batchCopyBtn').addEventListener('click', batchCopyKeys);
   $('batchCsvBtn').addEventListener('click', batchDownloadCsv);
+  $('pickAllBtn').addEventListener('click', pickAll);
+  $('pickNoneBtn').addEventListener('click', pickNone);
+  $('wlPickAllBtn').addEventListener('click', pickAll);
+  $('wlPickNoneBtn').addEventListener('click', pickNone);
 }
 
 function setMode(m) {
