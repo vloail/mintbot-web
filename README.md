@@ -43,7 +43,12 @@ python3 -m http.server 8787
   - 👤 账号钱包：注册/登录后创建或导入钱包（加密存本浏览器），勾选批量 mint
   - 📦 粘贴私钥：每行一个，任务按钱包分组——**钱包内顺序执行（nonce 不冲突）、钱包之间并行**（并发数可调）
 - **钱包管理**：单个创建（12 词助记词）/ ⚡ 批量创建（无📄助记词，一键导出私钥 CSV，最多 500 个）/ 导入（私钥或助记词）/ 导出 / 删除
-- **顶部 Tab 切换**：🧪 普通合约 Mint ｜ 🛒 OpenSea Mint（显眼入口）
+- **顶部 Tab 切换**：🧪 普通合约 Mint ｜ 🛒 OpenSea Mint ｜ 🛰️ Scatter 发射台（显眼入口）
+- **🛰️ Scatter 发射台**（Archetype 合约，内置 Cash NPC 预设）：
+  - 一键读取链上列表（invites）：key / 价格 / 钱包上限 / 供应 / 状态
+  - 无需签名、无需 merkle proof（key ≤ 0xff 公开列表）
+  - `mint((bytes32,bytes32[]),uint256,address,bytes)` 批量调用，价格自动计算
+  - Cash NPC：key=0 FREE 已售罄；key=1 PUBLIC 0.000043 ETH 进行中
 - **内置网络预设**：GIWA Testnet、Robinhood Chain、Ethereum、Base、Arbitrum、Polygon + 自定义 RPC
 - **内置函数签名**：mint(uint256)、mint(uint256,address)、publicMint(uint256)、mint(address,uint256)、claim()、freeMint()、mintPOAP(string)、自定义 ABI JSON
 - **合约预设**：POAP Attendance（GIWA Testnet 0x8Cd7207d60D236F2b71c7AD677fcd45053Da0d1c）
@@ -83,3 +88,9 @@ python3 -m http.server 8787
 1. GitHub 仓库 Actions 页面 → fetch-opensea → Run workflow → 填 slug（如 outlandersonrh）→ 运行
 2. 等待 1 分钟，runner 抓取页面并解析成 `opensea_data/{slug}.json`
 3. 回到网站，填集合链接 → ⚡ 自动配置 即可
+
+## 添加新的 Scatter 集合
+
+1. 打开 scatter.art 集合页 → 复制合约地址（页面 Details 或区块浏览器）
+2. 网站 Scatter Tab → 粘贴合约地址 → 📡 读取列表 → 选 key → 批量 mint
+（Scatter 使用 Archetype 合约，mint 无需签名/merkle，仅需 ETH gas + 价格款）
