@@ -1,0 +1,10 @@
+{
+  "error" : {
+    "message" : "Not Found",
+    "status" : "NOT_FOUND",
+    "code" : 404
+  },
+  "meta" : {
+    "x-trace-id" : "5819609606816968725"
+  }
+}
