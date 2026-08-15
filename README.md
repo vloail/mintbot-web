@@ -36,12 +36,13 @@ python3 -m http.server 8787
 - **内置网络预设**：GIWA Testnet、Robinhood Chain、Ethereum、Base、Arbitrum、Polygon + 自定义 RPC
 - **内置函数签名**：mint(uint256)、mint(uint256,address)、publicMint(uint256)、mint(address,uint256)、claim()、freeMint()、mintPOAP(string)、自定义 ABI JSON
 - **合约预设**：POAP Attendance（GIWA Testnet 0x8Cd7207d60D236F2b71c7AD677fcd45053Da0d1c）
-- **🛒 OpenSea SeaDrop 模式**（内置 OUTLANDERS on RH 预设）：
-  - Robinhood Chain 上 OpenSea SeaDrop 合约批量 mint（Erc721SeaDropV1）
-  - 一键读取链上 drop 配置（价格/时段/每钱包上限/feeRecipient/signers）
+- **🛒 OpenSea SeaDrop 模式**（填集合链接一键自动配置）：
+  - 粘贴 opensea.io 集合链接/slug → 自动解析 NFT 合约、SeaDrop 合约、全部阶段（时间/价格/上限/状态）
+  - 链上 drop 配置一键读取（价格/时段/每钱包上限/feeRecipient/signers）
   - 按钱包自动判断阶段：有签名→签名阶段（TEAM/WL/COMMUNITY），无签名→Public
   - mintPublic（公开阶段，无需签名，全自动）与 mintSigned（签名阶段）双支持
   - EIP-712 签名本地验证（recover 对比 signer 白名单）
+  - 新集合：GitHub Actions → fetch-opensea → Run workflow → 填 slug 抓取一次后即可自动配置
 - **Gas 控制**：EIP-1559 / legacy 自动识别，倍率可调；gasLimit 自动估算（失败回退 300k）
 - **运行面板**：总任务/成功/失败/进行中统计、进度条、实时日志、失败列表一键复制
 - 配置自动保存到 localStorage
@@ -65,3 +66,9 @@ python3 -m http.server 8787
 - POAP 合约每个地址只能 mint 一次，名字列表行数 = 钱包数
 - OpenSea 签名阶段（TEAM/WL/COMMUNITY）的 EIP-712 签名由 OpenSea 后端签发：在 opensea.io 集合页 DevTools → Network → 点 Mint，抓 mintSigned 请求参数填入「签名 JSON」。Public 阶段无需签名
 - OUTLANDERS 公开阶段：2026-08-15 17:00 UTC（北京时间 8/16 01:00）→ 08-22，0.0015 ETH/个，每钱包上限 5
+
+## 添加新的 OpenSea 集合
+
+1. GitHub 仓库 Actions 页面 → fetch-opensea → Run workflow → 填 slug（如 outlandersonrh）→ 运行
+2. 等待 1 分钟，runner 抓取页面并解析成 `opensea_data/{slug}.json`
+3. 回到网站，填集合链接 → ⚡ 自动配置 即可
