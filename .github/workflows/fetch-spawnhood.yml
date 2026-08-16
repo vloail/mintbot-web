@@ -90,10 +90,16 @@ jobs:
           })();
           "
           wc -c data/spawnhood.json
+      - name: Download game assets
+        run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+          curl -sL --max-time 60 -A "$UA" "https://spawnhood.com/game.js?v=20260816f" -o data/spawnhood-game.js || echo "game.js dl failed"
+          curl -sL --max-time 60 -A "$UA" "https://spawnhood.com/audio.js?v=20260816f" -o data/spawnhood-audio.js || echo "audio.js dl failed"
+          wc -c data/spawnhood-game.js data/spawnhood-audio.js
       - name: Commit results
         run: |
           git config user.name "vloail"
           git config user.email "vloail@users.noreply.github.com"
-          git add data/spawnhood.json || true
-          git commit -m "fetch: spawnhood.com capture" || echo "no changes"
+          git add data/ || true
+          git commit -m "fetch: spawnhood.com capture + assets" || echo "no changes"
           git push origin main || echo "push failed"
