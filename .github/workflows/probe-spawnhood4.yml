@@ -1,0 +1,113 @@
+name: probe-spawnhood4
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/probe-spawnhood4.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install ws
+        run: npm init -y >/dev/null 2>&1 && npm i ws >/dev/null 2>&1
+      - name: Probe with Origin + cookies + fast retry
+        run: |
+          mkdir -p data
+          # first get CF cookies from the page
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+          curl -sL --max-time 60 -A "$UA" -c /tmp/cj.txt "https://spawnhood.com/" -o /tmp/page.html || true
+          echo "cookie jar:"; cat /tmp/cj.txt 2>/dev/null | grep -v '^#' || echo "(empty)"
+          COOKIES=$(awk 'NF>=6 && $6!="" {printf "%s=%s; ", $6, $7}' /tmp/cj.txt 2>/dev/null)
+          echo "cookies: $COOKIES"
+          node -e "
+          const WebSocket = require('ws');
+          const fs = require('fs');
+          const POOLS = ['primordial-ooze','fairy-lake','dungeon-dam','ravens-nest','creature-swamp','babblin-brook'];
+          const PID = '0x35706ff1754f6291ccdb8ae6f29131b358a4d59b';
+          const COOKIES = process.env.WS_COOKIES || '';
+          const out = [];
+          const t0 = Date.now();
+          const log = (tag, s) => out.push({ ms: Date.now() - t0, tag, s: String(s).slice(0, 2000) });
+          let attempt = 0, joined = false, ws = null, lastWorld = null, claimNftId = null, mintReq = false, lastAttack = 0;
+
+          function connect() {
+            attempt++;
+            const pool = POOLS[attempt % POOLS.length];
+            log('attempt', attempt + ' pool=' + pool + ' cookies=' + (COOKIES ? 'yes' : 'no'));
+            const headers = { Origin: 'https://spawnhood.com' };
+            if (COOKIES) headers.Cookie = COOKIES;
+            ws = new WebSocket('wss://spawnhood.com/ws', { headers });
+            ws.on('open', () => { ws.send(JSON.stringify({ t: 'join', pid: PID, name: 'hood' + attempt, pool })); log('send', 'join ' + pool); });
+            ws.on('message', d => {
+              const s = d.toString();
+              let j; try { j = JSON.parse(s); } catch(e) { log('raw', s.slice(0,300)); return; }
+              if (j.t !== 'world') log('msg', s.slice(0, 600));
+              switch (j.t) {
+                case 'full': case 'pool_full':
+                  log(j.t, 'retry 5s');
+                  setTimeout(() => { try { ws.close(); } catch(e){} setTimeout(connect, 2000); }, 5000);
+                  break;
+                case 'joined':
+                  joined = true; log('JOINED', 'genesisMinted=' + j.genesisMinted);
+                  break;
+                case 'spectating': joined = true; log('SPECTATING', 'genesisMinted=' + j.genesisMinted); break;
+                case 'world':
+                  lastWorld = j;
+                  if (out.filter(o=>o.tag==='world').length < 4) log('world', JSON.stringify(j).slice(0, 2000));
+                  break;
+                case 'hit': log('hit', s); break;
+                case 'claim': claimNftId = j.nft && j.nft.nftId; log('claim', JSON.stringify(j.nft).slice(0, 600)); break;
+                case 'claim_choice':
+                  log('claim_choice', s.slice(0, 600));
+                  if (j.options && j.options.length && !mintReq) { mintReq = true; ws.send(JSON.stringify({ t: 'claim_pick', nftId: j.options[0].nftId })); }
+                  break;
+                case 'voucher': log('VOUCHER', s); break;
+                case 'mint_result': log('mint_result', s); break;
+                case 'minted': log('minted', s.slice(0, 300)); break;
+              }
+            });
+            ws.on('close', () => { if (joined) { joined = false; setTimeout(connect, 1500); } });
+            ws.on('error', e => { log('err', e.message.slice(0, 120)); setTimeout(connect, 2000); });
+          }
+
+          setInterval(() => {
+            if (!joined || !ws || ws.readyState !== 1 || !lastWorld) return;
+            const now = Date.now();
+            if (claimNftId != null && !mintReq) { mintReq = true; ws.send(JSON.stringify({ t: 'mint', nftId: claimNftId })); log('mint_req', String(claimNftId)); }
+            const es = (lastWorld.enemies || []).filter(e => e.ttl > 0);
+            let target = null, best = 1e18;
+            for (const e of es) { const d = (e.x - 500)**2 + (e.y - 400)**2; if (d < best) { best = d; target = e; } }
+            let x = 500, y = 400, angle = 0.5, moving = false;
+            if (target) {
+              const dx = target.x - x, dy = target.y - y, dist = Math.sqrt(dx*dx + dy*dy);
+              angle = Math.atan2(dy, dx);
+              if (dist > 55) { const sp = Math.min(5, dist); x = Math.round(x + dx/dist*sp); y = Math.round(y + dy/dist*sp); moving = true; }
+            }
+            ws.send(JSON.stringify({ t: 'state', x, y, angle: +angle.toFixed(2), moving, frame: Math.round(now/100) }));
+            if (now - lastAttack > 500) { lastAttack = now; ws.send(JSON.stringify({ t: 'attack' })); }
+          }, 100);
+
+          connect();
+          setTimeout(() => {
+            try { ws.close(); } catch(e){}
+            fs.writeFileSync('data/spawnhood-ws5.json', JSON.stringify(out, null, 1));
+            const tags = {}; out.forEach(o => tags[o.tag] = (tags[o.tag]||0)+1);
+            console.log('EVENTS', out.length, JSON.stringify(tags));
+            process.exit(0);
+          }, 900000);
+          "
+          wc -c data/spawnhood-ws5.json
+      - name: Commit results
+        run: |
+          git config user.name "vloail"
+          git config user.email "vloail@users.noreply.github.com"
+          git add data/spawnhood-ws5.json || true
+          git commit -m "probe4: origin+cookie" || echo "no changes"
+          git push origin main || echo "push failed"
