@@ -1,0 +1,252 @@
+[
+ {
+  "ms": 13023,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 13024,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 13025,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 13025,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 13064,
+  "tag": "close",
+  "s": "socket closed"
+ },
+ {
+  "ms": 35435,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 35435,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 35435,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 35435,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 35473,
+  "tag": "close",
+  "s": "socket closed"
+ },
+ {
+  "ms": 57904,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 57905,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 57905,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 57905,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 57945,
+  "tag": "close",
+  "s": "socket closed"
+ },
+ {
+  "ms": 103032,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 103032,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 103032,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 103032,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 103069,
+  "tag": "close",
+  "s": "socket closed"
+ },
+ {
+  "ms": 142087,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 142087,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 142087,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 142087,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 142126,
+  "tag": "close",
+  "s": "socket closed"
+ },
+ {
+  "ms": 163662,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 163662,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 163662,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 163662,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 163702,
+  "tag": "close",
+  "s": "socket closed"
+ },
+ {
+  "ms": 189715,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 189716,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 189723,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 189723,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 189762,
+  "tag": "close",
+  "s": "socket closed"
+ },
+ {
+  "ms": 225100,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 225100,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 225100,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 225100,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 225139,
+  "tag": "close",
+  "s": "socket closed"
+ },
+ {
+  "ms": 247019,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 247019,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 247019,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 247019,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 247059,
+  "tag": "close",
+  "s": "socket closed"
+ },
+ {
+  "ms": 284368,
+  "tag": "open",
+  "s": "socket open"
+ },
+ {
+  "ms": 284368,
+  "tag": "join",
+  "s": "primordial-ooze"
+ },
+ {
+  "ms": 284368,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 284368,
+  "tag": "full",
+  "s": "server at capacity, retry in 20s"
+ },
+ {
+  "ms": 284407,
+  "tag": "close",
+  "s": "socket closed"
+ }
+]
