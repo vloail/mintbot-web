@@ -1,0 +1,157 @@
+name: probe-spawnhood
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/probe-spawnhood.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install ws
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i ws >/dev/null 2>&1
+      - name: Game protocol probe (play like a real client)
+        run: |
+          mkdir -p data
+          node -e "
+          const WebSocket = require('ws');
+          const fs = require('fs');
+          const PID = '0x35706ff1754f6291ccdb8ae6f29131b358a4d59b';
+          const POOLS = ['primordial-ooze','fairy-lake','dungeon-dam','ravens-nest','creature-swamp','babblin-brook'];
+          const out = [];
+          const t0 = Date.now();
+          const log = (tag, s) => out.push({ ms: Date.now() - t0, tag, s: String(s).slice(0, 4000) });
+          let joined = false, joinedPool = 0, attackT = 0, lastWorld = null, sentMint = false, claimNftId = null;
+          let ws = null;
+
+          function connect() {
+            ws = new WebSocket('wss://spawnhood.com/ws');
+            ws.on('open', () => {
+              log('open', 'socket open');
+              const pool = POOLS[joinedPool % POOLS.length];
+              ws.send(JSON.stringify({ t: 'join', pid: PID, name: 'probe', pool }));
+              log('join', pool);
+            });
+            ws.on('message', d => {
+              const s = d.toString();
+              let j; try { j = JSON.parse(s); } catch (e) { log('raw', s.slice(0, 500)); return; }
+              if (j.t !== 'world') log('msg', s);
+              switch (j.t) {
+                case 'full':
+                  log('full', 'server at capacity, retry in 20s');
+                  setTimeout(() => { try { ws.close(); } catch (e) {} setTimeout(connect, 1000); }, 20000);
+                  break;
+                case 'pool_full':
+                  log('pool_full', 'pool ' + joinedPool + ' full, next pool');
+                  joinedPool++;
+                  setTimeout(() => { try { ws.close(); } catch (e) {} setTimeout(connect, 500); }, 3000);
+                  break;
+                case 'joined':
+                  joined = true;
+                  log('joined', 'OK color=' + j.color + ' genesisMinted=' + j.genesisMinted);
+                  break;
+                case 'world':
+                  lastWorld = j;
+                  if (out.filter(o => o.tag === 'world').length < 3) {
+                    log('world', JSON.stringify({ enemies: (j.enemies || []).map(e => ({ id: e.id, x: e.x, y: e.y, kind: e.kind, type: e.type, rarity: e.rarity, hits: e.hits, hp: e.hp, ttl: e.ttl, nftId: e.nftId, spawnAge: e.spawnAge })), players: (j.players || []).length, gem: j.gem, yeti: !!j.yeti }));
+                  } else if (out.filter(o => o.tag === 'world').length === 3) {
+                    log('world', '...(suppressing world spam) enemies=' + (j.enemies || []).length);
+                  }
+                  break;
+                case 'hit':
+                  log('hit', s);
+                  break;
+                case 'claim':
+                  claimNftId = j.nft && j.nft.nftId;
+                  log('claim', JSON.stringify(j.nft));
+                  log('claim_full', s);
+                  break;
+                case 'claim_choice':
+                  log('claim_choice', s);
+                  if (j.options && j.options.length && !sentMint) {
+                    sentMint = true;
+                    ws.send(JSON.stringify({ t: 'claim_pick', nftId: j.options[0].nftId }));
+                    log('claim_pick', 'picked ' + j.options[0].nftId);
+                  }
+                  break;
+                case 'voucher':
+                  log('voucher_FULL', s);
+                  break;
+                case 'mint_result':
+                  log('mint_result', s);
+                  break;
+                case 'minted':
+                  log('minted', s);
+                  break;
+                case 'milestone': log('milestone', s); break;
+                case 'spectating': log('spectating', s); break;
+                case 'eaten': log('eaten', s); break;
+                case 'exploded': log('exploded', s); break;
+                case 'gem': log('gem', s); break;
+              }
+            });
+            ws.on('close', () => {
+              if (joined) { log('close', 'reconnect'); joined = false; setTimeout(connect, 2000); }
+              else log('close', 'socket closed');
+            });
+            ws.on('error', e => { log('err', e.message); try { ws.close(); } catch (x) {} });
+          }
+
+          // movement + attack loop once joined
+          setInterval(() => {
+            if (!joined || !ws || ws.readyState !== 1 || !lastWorld) return;
+            const now = Date.now();
+            // find nearest enemy, move toward it
+            const es = (lastWorld.enemies || []).filter(e => e.ttl > 0);
+            let target = null, best = 1e18;
+            for (const e of es) {
+              const d = (e.x - 500) ** 2 + (e.y - 400) ** 2;
+              if (d < best) { best = d; target = e; }
+            }
+            let x = 500, y = 400, angle = 0.5, moving = false;
+            if (target) {
+              const dx = target.x - x, dy = target.y - y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              angle = Math.atan2(dy, dx);
+              if (dist > 60) { const sp = Math.min(4, dist); x = Math.round(x + dx / dist * sp); y = Math.round(y + dy / dist * sp); moving = true; }
+              else { moving = false; }
+            }
+            ws.send(JSON.stringify({ t: 'state', x, y, angle: +angle.toFixed(2), moving, frame: Math.round(now / 100) }));
+            if (now - attackT > 500) { attackT = now; ws.send(JSON.stringify({ t: 'attack' })); }
+          }, 100);
+
+          // on claim, request mint after 2s
+          setInterval(() => {
+            if (claimNftId != null && !sentMint && joined && ws && ws.readyState === 1) {
+              sentMint = true;
+              ws.send(JSON.stringify({ t: 'mint', nftId: claimNftId }));
+              log('mint_req', 'nftId=' + claimNftId);
+            }
+          }, 1000);
+
+          connect();
+          setTimeout(() => {
+            try { ws.close(); } catch (e) {}
+            fs.writeFileSync('data/spawnhood-ws2.json', JSON.stringify(out, null, 1));
+            const tags = {}; out.forEach(o => tags[o.tag] = (tags[o.tag] || 0) + 1);
+            console.log('EVENTS:', out.length, JSON.stringify(tags));
+            process.exit(0);
+          }, 300000);
+          "
+          wc -c data/spawnhood-ws2.json
+      - name: Commit results
+        run: |
+          git config user.name "vloail"
+          git config user.email "vloail@users.noreply.github.com"
+          git add data/spawnhood-ws2.json || true
+          git commit -m "probe: spawnhood game protocol capture" || echo "no changes"
+          git push origin main || echo "push failed"
