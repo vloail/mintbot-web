@@ -1,0 +1,567 @@
+[
+ {
+  "ms": 0,
+  "tag": "attempt",
+  "s": "1 pool=fairy-lake cookies=no"
+ },
+ {
+  "ms": 37520,
+  "tag": "send",
+  "s": "join fairy-lake"
+ },
+ {
+  "ms": 37521,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 37521,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 44521,
+  "tag": "attempt",
+  "s": "2 pool=dungeon-dam cookies=no"
+ },
+ {
+  "ms": 76836,
+  "tag": "send",
+  "s": "join dungeon-dam"
+ },
+ {
+  "ms": 76836,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 76836,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 83835,
+  "tag": "attempt",
+  "s": "3 pool=ravens-nest cookies=no"
+ },
+ {
+  "ms": 92561,
+  "tag": "send",
+  "s": "join ravens-nest"
+ },
+ {
+  "ms": 92561,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 92561,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 99562,
+  "tag": "attempt",
+  "s": "4 pool=creature-swamp cookies=no"
+ },
+ {
+  "ms": 127727,
+  "tag": "send",
+  "s": "join creature-swamp"
+ },
+ {
+  "ms": 127727,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 127727,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 134727,
+  "tag": "attempt",
+  "s": "5 pool=babblin-brook cookies=no"
+ },
+ {
+  "ms": 163327,
+  "tag": "send",
+  "s": "join babblin-brook"
+ },
+ {
+  "ms": 163327,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 163327,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 170328,
+  "tag": "attempt",
+  "s": "6 pool=primordial-ooze cookies=no"
+ },
+ {
+  "ms": 181367,
+  "tag": "send",
+  "s": "join primordial-ooze"
+ },
+ {
+  "ms": 181367,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 181367,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 188368,
+  "tag": "attempt",
+  "s": "7 pool=fairy-lake cookies=no"
+ },
+ {
+  "ms": 207225,
+  "tag": "send",
+  "s": "join fairy-lake"
+ },
+ {
+  "ms": 207225,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 207225,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 214225,
+  "tag": "attempt",
+  "s": "8 pool=dungeon-dam cookies=no"
+ },
+ {
+  "ms": 232099,
+  "tag": "send",
+  "s": "join dungeon-dam"
+ },
+ {
+  "ms": 232099,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 232099,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 239099,
+  "tag": "attempt",
+  "s": "9 pool=ravens-nest cookies=no"
+ },
+ {
+  "ms": 245117,
+  "tag": "send",
+  "s": "join ravens-nest"
+ },
+ {
+  "ms": 245117,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 245117,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 252117,
+  "tag": "attempt",
+  "s": "10 pool=creature-swamp cookies=no"
+ },
+ {
+  "ms": 284329,
+  "tag": "send",
+  "s": "join creature-swamp"
+ },
+ {
+  "ms": 284330,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 284330,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 291329,
+  "tag": "attempt",
+  "s": "11 pool=babblin-brook cookies=no"
+ },
+ {
+  "ms": 336958,
+  "tag": "send",
+  "s": "join babblin-brook"
+ },
+ {
+  "ms": 336958,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 336958,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 343959,
+  "tag": "attempt",
+  "s": "12 pool=primordial-ooze cookies=no"
+ },
+ {
+  "ms": 357847,
+  "tag": "send",
+  "s": "join primordial-ooze"
+ },
+ {
+  "ms": 357847,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 357847,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 364848,
+  "tag": "attempt",
+  "s": "13 pool=fairy-lake cookies=no"
+ },
+ {
+  "ms": 373991,
+  "tag": "send",
+  "s": "join fairy-lake"
+ },
+ {
+  "ms": 373991,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 373991,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 380991,
+  "tag": "attempt",
+  "s": "14 pool=dungeon-dam cookies=no"
+ },
+ {
+  "ms": 383982,
+  "tag": "send",
+  "s": "join dungeon-dam"
+ },
+ {
+  "ms": 383982,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 383982,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 390982,
+  "tag": "attempt",
+  "s": "15 pool=ravens-nest cookies=no"
+ },
+ {
+  "ms": 410551,
+  "tag": "send",
+  "s": "join ravens-nest"
+ },
+ {
+  "ms": 410551,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 410551,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 417551,
+  "tag": "attempt",
+  "s": "16 pool=creature-swamp cookies=no"
+ },
+ {
+  "ms": 505475,
+  "tag": "err",
+  "s": "Unexpected server response: 503"
+ },
+ {
+  "ms": 507475,
+  "tag": "attempt",
+  "s": "17 pool=babblin-brook cookies=no"
+ },
+ {
+  "ms": 580046,
+  "tag": "err",
+  "s": "Unexpected server response: 503"
+ },
+ {
+  "ms": 582046,
+  "tag": "attempt",
+  "s": "18 pool=primordial-ooze cookies=no"
+ },
+ {
+  "ms": 593492,
+  "tag": "send",
+  "s": "join primordial-ooze"
+ },
+ {
+  "ms": 593493,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 593493,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 600493,
+  "tag": "attempt",
+  "s": "19 pool=fairy-lake cookies=no"
+ },
+ {
+  "ms": 619565,
+  "tag": "send",
+  "s": "join fairy-lake"
+ },
+ {
+  "ms": 619565,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 619565,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 626565,
+  "tag": "attempt",
+  "s": "20 pool=dungeon-dam cookies=no"
+ },
+ {
+  "ms": 645003,
+  "tag": "send",
+  "s": "join dungeon-dam"
+ },
+ {
+  "ms": 645003,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 645003,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 652003,
+  "tag": "attempt",
+  "s": "21 pool=ravens-nest cookies=no"
+ },
+ {
+  "ms": 689702,
+  "tag": "send",
+  "s": "join ravens-nest"
+ },
+ {
+  "ms": 689702,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 689702,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 696703,
+  "tag": "attempt",
+  "s": "22 pool=creature-swamp cookies=no"
+ },
+ {
+  "ms": 726181,
+  "tag": "send",
+  "s": "join creature-swamp"
+ },
+ {
+  "ms": 726181,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 726181,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 733181,
+  "tag": "attempt",
+  "s": "23 pool=babblin-brook cookies=no"
+ },
+ {
+  "ms": 743451,
+  "tag": "send",
+  "s": "join babblin-brook"
+ },
+ {
+  "ms": 743451,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 743451,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 750451,
+  "tag": "attempt",
+  "s": "24 pool=primordial-ooze cookies=no"
+ },
+ {
+  "ms": 758277,
+  "tag": "send",
+  "s": "join primordial-ooze"
+ },
+ {
+  "ms": 758277,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 758277,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 765277,
+  "tag": "attempt",
+  "s": "25 pool=fairy-lake cookies=no"
+ },
+ {
+  "ms": 787178,
+  "tag": "send",
+  "s": "join fairy-lake"
+ },
+ {
+  "ms": 787178,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 787178,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 794178,
+  "tag": "attempt",
+  "s": "26 pool=dungeon-dam cookies=no"
+ },
+ {
+  "ms": 803180,
+  "tag": "send",
+  "s": "join dungeon-dam"
+ },
+ {
+  "ms": 803180,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 803180,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 810181,
+  "tag": "attempt",
+  "s": "27 pool=ravens-nest cookies=no"
+ },
+ {
+  "ms": 819104,
+  "tag": "send",
+  "s": "join ravens-nest"
+ },
+ {
+  "ms": 819104,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 819104,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 826104,
+  "tag": "attempt",
+  "s": "28 pool=creature-swamp cookies=no"
+ },
+ {
+  "ms": 836599,
+  "tag": "send",
+  "s": "join creature-swamp"
+ },
+ {
+  "ms": 836599,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 836599,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 843598,
+  "tag": "attempt",
+  "s": "29 pool=babblin-brook cookies=no"
+ },
+ {
+  "ms": 867482,
+  "tag": "send",
+  "s": "join babblin-brook"
+ },
+ {
+  "ms": 867482,
+  "tag": "msg",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 867482,
+  "tag": "full",
+  "s": "retry 5s"
+ },
+ {
+  "ms": 874481,
+  "tag": "attempt",
+  "s": "30 pool=primordial-ooze cookies=no"
+ }
+]
