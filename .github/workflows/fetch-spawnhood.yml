@@ -1,0 +1,99 @@
+name: fetch-spawnhood
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/fetch-spawnhood.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright + chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i playwright-core >/dev/null 2>&1
+          npx playwright-core install chromium --with-deps >/dev/null 2>&1 || true
+      - name: Fetch spawnhood.com (headless + network capture)
+        run: |
+          mkdir -p data
+          node -e "
+          const { chromium } = require('playwright-core');
+          const fs = require('fs');
+          (async () => {
+            const browser = await chromium.launch({ args: ['--no-sandbox'] });
+            const ctx = await browser.newContext({
+              userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+              viewport: { width: 1440, height: 900 }
+            });
+            const page = await ctx.newPage();
+            const reqs = [];
+            const resps = [];
+            const consoleMsgs = [];
+            page.on('console', m => consoleMsgs.push(m.type() + ': ' + m.text().slice(0, 500)));
+            page.on('request', r => {
+              const u = r.url();
+              if (!u.startsWith('data:') && !/\.(png|jpe?g|svg|webp|woff2?|css|ico|gif)(\?|$)/.test(u) && !u.includes('fonts.')) {
+                reqs.push({ method: r.method(), url: u, postData: r.postData() ? r.postData().slice(0, 2000) : null });
+              }
+            });
+            page.on('response', async r => {
+              const u = r.url();
+              const ct = (r.headers()['content-type'] || '');
+              if (ct.includes('json') || ct.includes('text') || u.includes('api') || u.includes('voucher') || u.includes('mint')) {
+                try {
+                  const body = await r.text();
+                  resps.push({ status: r.status(), url: u, ct, body: body.slice(0, 6000) });
+                } catch (e) { resps.push({ status: r.status(), url: u, ct, body: 'ERR ' + e.message }); }
+              }
+            });
+            try {
+              await page.goto('https://spawnhood.com/', { waitUntil: 'domcontentloaded', timeout: 90000 });
+              await page.waitForTimeout(25000);
+              await page.mouse.wheel(0, 800).catch(() => {});
+              await page.waitForTimeout(4000);
+            } catch (e) { console.log('goto err:', e.message); }
+            const html = await page.content();
+            const storage = await page.evaluate(() => {
+              const out = {};
+              try { out.localStorage = { ...localStorage }; } catch (e) { out.localStorage = 'ERR'; }
+              try { out.sessionStorage = { ...sessionStorage }; } catch (e) { out.sessionStorage = 'ERR'; }
+              return out;
+            }).catch(e => ({ err: e.message }));
+            const cookies = await ctx.cookies();
+            const m = html.match(/0x[a-fA-F0-9]{40}/g);
+            const addrs = [...new Set(m || [])];
+            const allLinks = await page.evaluate(() => [...document.querySelectorAll('a')].map(a => a.href)).catch(() => []);
+            const links = [...new Set(allLinks)].filter(l => /spawnhood|etherscan|blockscout|contract|opensea|giwa|testnet/i.test(l));
+            const out = {
+              fetchedAt: new Date().toISOString(),
+              title: await page.title().catch(() => ''),
+              url: page.url(),
+              addrs,
+              links,
+              requests: reqs,
+              responses: resps,
+              console: consoleMsgs,
+              storage,
+              cookies: cookies.map(c => ({ name: c.name, domain: c.domain, value: c.value.slice(0, 200) })),
+              html
+            };
+            fs.writeFileSync('data/spawnhood.json', JSON.stringify(out, null, 1));
+            console.log('REQUESTS:', reqs.length, 'RESPONSES:', resps.length, 'ADDRS:', addrs.join(','));
+            await browser.close();
+          })();
+          "
+          wc -c data/spawnhood.json
+      - name: Commit results
+        run: |
+          git config user.name "vloail"
+          git config user.email "vloail@users.noreply.github.com"
+          git add data/spawnhood.json || true
+          git commit -m "fetch: spawnhood.com capture" || echo "no changes"
+          git push origin main || echo "push failed"
