@@ -1,0 +1,61 @@
+name: probe-spawnhood2
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/probe-spawnhood2.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install ws
+        run: npm init -y >/dev/null 2>&1 && npm i ws >/dev/null 2>&1
+      - name: Join attempts (random pid, all pools, retry loop)
+        run: |
+          mkdir -p data
+          node -e "
+          const WebSocket = require('ws');
+          const fs = require('fs');
+          const POOLS = ['primordial-ooze','fairy-lake','dungeon-dam','ravens-nest','creature-swamp','babblin-brook'];
+          const out = [];
+          const t0 = Date.now();
+          const log = (tag, s) => out.push({ ms: Date.now() - t0, tag, s: String(s).slice(0, 1200) });
+          let attempt = 0;
+          let ws = null;
+          function tryJoin() {
+            attempt++;
+            const pool = POOLS[attempt % POOLS.length];
+            const pid = attempt % 3 === 0
+              ? '0x35706ff1754f6291ccdb8ae6f29131b358a4d59b'
+              : ('p' + Math.random().toString(36).slice(2, 10));
+            log('attempt', attempt + ' pool=' + pool + ' pid=' + pid);
+            ws = new WebSocket('wss://spawnhood.com/ws');
+            ws.on('open', () => ws.send(JSON.stringify({ t: 'join', pid, name: 'p' + attempt, pool })));
+            ws.on('message', d => {
+              const s = d.toString();
+              log('resp', s.slice(0, 300));
+              if (s.includes('joined')) { log('SUCCESS', 'joined on attempt ' + attempt); setTimeout(() => process.exit(0), 5000); return; }
+              try { ws.close(); } catch (e) {}
+              setTimeout(tryJoin, 3000);
+            });
+            ws.on('close', () => {});
+            ws.on('error', e => { log('err', e.message); setTimeout(tryJoin, 3000); });
+          }
+          tryJoin();
+          setTimeout(() => { try { ws.close(); } catch(e){} fs.writeFileSync('data/spawnhood-ws3.json', JSON.stringify(out, null, 1)); const tags={}; out.forEach(o=>tags[o.tag]=(tags[o.tag]||0)+1); console.log('EVENTS', out.length, JSON.stringify(tags)); process.exit(0); }, 240000);
+          "
+          wc -c data/spawnhood-ws3.json
+      - name: Commit results
+        run: |
+          git config user.name "vloail"
+          git config user.email "vloail@users.noreply.github.com"
+          git add data/spawnhood-ws3.json || true
+          git commit -m "probe2: join attempts" || echo "no changes"
+          git push origin main || echo "push failed"
