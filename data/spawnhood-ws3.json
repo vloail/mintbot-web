@@ -1,0 +1,122 @@
+[
+ {
+  "ms": 0,
+  "tag": "attempt",
+  "s": "1 pool=fairy-lake pid=pj1zabcjl"
+ },
+ {
+  "ms": 17062,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 20064,
+  "tag": "attempt",
+  "s": "2 pool=dungeon-dam pid=p5eh610zc"
+ },
+ {
+  "ms": 43831,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 46834,
+  "tag": "attempt",
+  "s": "3 pool=ravens-nest pid=0x35706ff1754f6291ccdb8ae6f29131b358a4d59b"
+ },
+ {
+  "ms": 63481,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 66484,
+  "tag": "attempt",
+  "s": "4 pool=creature-swamp pid=pobfl976v"
+ },
+ {
+  "ms": 82230,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 85234,
+  "tag": "attempt",
+  "s": "5 pool=babblin-brook pid=p0om1hjzu"
+ },
+ {
+  "ms": 96381,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 99384,
+  "tag": "attempt",
+  "s": "6 pool=primordial-ooze pid=0x35706ff1754f6291ccdb8ae6f29131b358a4d59b"
+ },
+ {
+  "ms": 104987,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 107990,
+  "tag": "attempt",
+  "s": "7 pool=fairy-lake pid=p42e6q9nv"
+ },
+ {
+  "ms": 119334,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 122337,
+  "tag": "attempt",
+  "s": "8 pool=dungeon-dam pid=pp1o34m7m"
+ },
+ {
+  "ms": 173174,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 176177,
+  "tag": "attempt",
+  "s": "9 pool=ravens-nest pid=0x35706ff1754f6291ccdb8ae6f29131b358a4d59b"
+ },
+ {
+  "ms": 185805,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 188808,
+  "tag": "attempt",
+  "s": "10 pool=creature-swamp pid=ppulvpra3"
+ },
+ {
+  "ms": 201331,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 204334,
+  "tag": "attempt",
+  "s": "11 pool=babblin-brook pid=p5ryalsh1"
+ },
+ {
+  "ms": 229406,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ },
+ {
+  "ms": 232410,
+  "tag": "attempt",
+  "s": "12 pool=primordial-ooze pid=0x35706ff1754f6291ccdb8ae6f29131b358a4d59b"
+ },
+ {
+  "ms": 238700,
+  "tag": "resp",
+  "s": "{\"t\":\"full\"}"
+ }
+]
